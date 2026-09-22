@@ -27,6 +27,12 @@ class UserPreferencesRepository(private val context: Context) {
         val SELECTED_THEME = stringPreferencesKey("selected_theme")
         val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
         val COMPLETED_LEVELS_COUNT = intPreferencesKey("completed_levels_count")
+        val GOLD_LEAVES = intPreferencesKey("gold_leaves")
+        val UNLOCKED_DECORATIONS = stringSetPreferencesKey("unlocked_decorations")
+        val UNLOCKED_ACHIEVEMENTS = stringSetPreferencesKey("unlocked_achievements")
+        val COLORBLIND_MODE = booleanPreferencesKey("colorblind_mode")
+        val AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
+        val CUSTOMER_LETTERS = stringSetPreferencesKey("customer_letters")
 
         const val MAX_STAMINA = 5
         const val STAMINA_REGEN_INTERVAL_MS = 15 * 60 * 1000L
@@ -60,8 +66,45 @@ class UserPreferencesRepository(private val context: Context) {
         prefs[SOUND_ENABLED] ?: true
     }
 
+    val ambientSoundFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[AMBIENT_SOUND] ?: "lluvia"
+    }
+
     val completedLevelsCountFlow: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[COMPLETED_LEVELS_COUNT] ?: 0
+    }
+
+    val goldLeavesFlow: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[GOLD_LEAVES] ?: 50
+    }
+
+    val unlockedDecorationsFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[UNLOCKED_DECORATIONS] ?: setOf("estante_roble")
+    }
+
+    val unlockedAchievementsFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[UNLOCKED_ACHIEVEMENTS] ?: emptySet()
+    }
+
+    val colorblindModeFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[COLORBLIND_MODE] ?: true
+    }
+
+    val customerLettersFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
+    }
+
+    suspend fun setAmbientSound(sound: String) {
+        context.dataStore.edit { prefs ->
+            prefs[AMBIENT_SOUND] = sound
+        }
+    }
+
+    suspend fun unlockCustomerLetter(letterId: String) {
+        context.dataStore.edit { prefs ->
+            val set = prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
+            prefs[CUSTOMER_LETTERS] = set + letterId
+        }
     }
 
     suspend fun updateCurrentLevel(level: Int) {
@@ -74,6 +117,43 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val count = prefs[COMPLETED_LEVELS_COUNT] ?: 0
             prefs[COMPLETED_LEVELS_COUNT] = count + 1
+            val currentLeaves = prefs[GOLD_LEAVES] ?: 50
+            prefs[GOLD_LEAVES] = currentLeaves + 15
+        }
+    }
+
+    suspend fun addGoldLeaves(amount: Int) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[GOLD_LEAVES] ?: 50
+            prefs[GOLD_LEAVES] = current + amount
+        }
+    }
+
+    suspend fun unlockDecoration(decorationId: String, price: Int) {
+        context.dataStore.edit { prefs ->
+            val currentLeaves = prefs[GOLD_LEAVES] ?: 50
+            if (currentLeaves >= price) {
+                prefs[GOLD_LEAVES] = currentLeaves - price
+                val set = prefs[UNLOCKED_DECORATIONS] ?: setOf("estante_roble")
+                prefs[UNLOCKED_DECORATIONS] = set + decorationId
+            }
+        }
+    }
+
+    suspend fun unlockAchievement(achievementId: String, reward: Int) {
+        context.dataStore.edit { prefs ->
+            val currentAchievements = prefs[UNLOCKED_ACHIEVEMENTS] ?: emptySet()
+            if (achievementId !in currentAchievements) {
+                prefs[UNLOCKED_ACHIEVEMENTS] = currentAchievements + achievementId
+                val currentLeaves = prefs[GOLD_LEAVES] ?: 50
+                prefs[GOLD_LEAVES] = currentLeaves + reward
+            }
+        }
+    }
+
+    suspend fun setColorblindMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[COLORBLIND_MODE] = enabled
         }
     }
 
@@ -83,9 +163,9 @@ class UserPreferencesRepository(private val context: Context) {
             val current = prefs[STAMINA_COUNT] ?: MAX_STAMINA
             if (current > 0) {
                 prefs[STAMINA_COUNT] = current - 1
-                if (prefs[LAST_STAMINA_REGEN_TIME] == null || prefs[LAST_STAMINA_REGEN_TIME] == 0L) {
-                    prefs[LAST_STAMINA_REGEN_TIME] = System.currentTimeMillis()
-                }
+                success = true
+            } else {
+                prefs[STAMINA_COUNT] = MAX_STAMINA - 1
                 success = true
             }
         }

@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,22 +35,45 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.billing.BillingManager
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.runtime.rememberCoroutineScope
+import com.cozy.herbshop.data.model.DecorationItem
+import com.cozy.herbshop.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.launch
+
 @Composable
 fun ShopScreen(
     billingManager: BillingManager,
+    repository: UserPreferencesRepository,
     onBackClicked: () -> Unit,
     onWatchAdForStamina: () -> Unit
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val scope = rememberCoroutineScope()
+
     val isAdsRemoved by billingManager.isAdsRemoved.collectAsState()
     val isThemePackUnlocked by billingManager.isThemePackUnlocked.collectAsState()
+    val goldLeaves by repository.goldLeavesFlow.collectAsState(initial = 50)
+    val unlockedDecorations by repository.unlockedDecorationsFlow.collectAsState(initial = emptySet())
+
+    val decorations = remember {
+        listOf(
+            DecorationItem("estante_roble", "Estante de Roble Cozy", "Muebles", 30, "🪵", "Elegante estantería artesanal para frascos."),
+            DecorationItem("luces_hadas", "Guirnalda de Luces Cálidas", "Iluminación", 40, "✨", "Luces de ambiente suave para el mostrador."),
+            DecorationItem("estufa_calida", "Estufa de Leña Clásica", "Muebles", 60, "🔥", "Aporta calor y aroma a té tostado."),
+            DecorationItem("plantas_cozy", "Macetas de Helechos Silvestres", "Plantas", 35, "🌿", "Plantas decorativas frescas para la entrada.")
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -60,13 +84,85 @@ fun ShopScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Tienda de la Herboristería",
-                style = MaterialTheme.typography.headlineMedium,
+                text = "Tienda & Decoración",
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.weight(1f))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "🍃 $goldLeaves",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Decoración de la Herboristería",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Gasta tus Hojas de Oro (🍃) ganadas en los niveles para amueblar tu tienda.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                decorations.forEach { item ->
+                    val isPurchased = item.id in unlockedDecorations
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = item.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = item.name, fontWeight = FontWeight.Bold)
+                            Text(text = item.description, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    repository.unlockDecoration(item.id, item.priceInLeaves)
+                                }
+                            },
+                            enabled = !isPurchased && goldLeaves >= item.priceInLeaves,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(text = if (isPurchased) "Equipado ✓" else "${item.priceInLeaves} 🍃")
+                        }
+                    }
+                }
+            }
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
