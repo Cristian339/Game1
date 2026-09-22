@@ -1,0 +1,57 @@
+[
+  {
+    "levelNumber": 1,
+    "jarCapacity": 4,
+    "jars": [
+      ["chamomile", "lavender", "chamomile", "lavender"],
+      ["lavender", "chamomile", "lavender", "chamomile"],
+      []
+    ]
+  },
+  {
+    "levelNumber": 2,
+    "jarCapacity": 4,
+    "jars": [
+      ["mint", "chamomile", "mint", "chamomile"],
+      ["chamomile", "lavender", "chamomile", "lavender"],
+      ["lavender", "mint", "lavender", "mint"],
+      [],
+      []
+    ]
+  },
+  {
+    "levelNumber": 3,
+    "jarCapacity": 4,
+    "jars": [
+      ["rose", "mint", "cinnamon", "mint"],
+      ["cinnamon", "rose", "mint", "cinnamon"],
+      ["mint", "cinnamon", "rose", "rose"],
+      [],
+      []
+    ]
+  },
+  {
+    "levelNumber": 4,
+    "jarCapacity": 4,
+    "jars": [
+      ["hibiscus", "chamomile", "hibiscus", "rosemary"],
+      ["rosemary", "lavender", "rosemary", "chamomile"],
+      ["lavender", "hibiscus", "chamomile", "lavender"],
+      ["chamomile", "rosemary", "lavender", "hibiscus"],
+      [],
+      []
+    ]
+  },
+  {
+    "levelNumber": 5,
+    "jarCapacity": 4,
+    "jars": [
+      ["calendula", "thyme", "calendula", "mint"],
+      ["thyme", "cinnamon", "mint", "calendula"],
+      ["cinnamon", "mint", "thyme", "cinnamon"],
+      ["mint", "calendula", "cinnamon", "thyme"],
+      [],
+      []
+    ]
+  }
+]
