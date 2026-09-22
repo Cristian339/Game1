@@ -2,6 +2,7 @@ package com.cozy.herbshop.ui.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cozy.herbshop.data.audio.SoundManager
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.PourResult
@@ -19,11 +20,24 @@ class GameViewModel(
     private val levelRepository: LevelRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val gameEngine: GameEngine = GameEngine(),
-    private val solver: LevelSolver = LevelSolver()
+    private val solver: LevelSolver = LevelSolver(),
+    private val soundManager: SoundManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferencesRepository.soundEnabledFlow.collect { enabled ->
+                soundManager?.soundEnabled = enabled
+            }
+        }
+    }
+
+    fun resetLevelCompleted() {
+        _uiState.update { it.copy(isLevelCompleted = false, selectedJarIndex = null) }
+    }
 
     fun loadLevel(levelNumber: Int) {
         viewModelScope.launch {
@@ -31,7 +45,34 @@ class GameViewModel(
             val initialJars = levelRepository.convertToJars(level)
             _uiState.value = GameUiState(
                 levelNumber = levelNumber,
-                jars = initialJars
+                jars = initialJars,
+                customerOrder = level.customerOrder,
+                isDailyChallenge = level.isDailyChallenge
+            )
+        }
+    }
+
+    fun loadDailyChallenge() {
+        viewModelScope.launch {
+            val level = levelRepository.getDailyChallengeLevel()
+            val initialJars = levelRepository.convertToJars(level)
+            _uiState.value = GameUiState(
+                levelNumber = 999,
+                jars = initialJars,
+                customerOrder = level.customerOrder,
+                isDailyChallenge = true
+            )
+        }
+    }
+
+    fun loadZenLevel() {
+        viewModelScope.launch {
+            val level = levelRepository.getZenLevel()
+            val initialJars = levelRepository.convertToJars(level)
+            _uiState.value = GameUiState(
+                levelNumber = 0,
+                jars = initialJars,
+                isZenMode = true
             )
         }
     }
@@ -44,6 +85,7 @@ class GameViewModel(
 
         if (selectedIdx == null) {
             if (!currentState.jars[jarIndex].isEmpty) {
+                soundManager?.playJarClick()
                 _uiState.update { it.copy(selectedJarIndex = jarIndex) }
             }
         } else if (selectedIdx == jarIndex) {
@@ -54,6 +96,7 @@ class GameViewModel(
 
             val pourResult = gameEngine.pour(src, dst)
             if (pourResult is PourResult.Success) {
+                soundManager?.playPourSound()
                 val newJars = gameEngine.executePour(
                     currentState.jars,
                     selectedIdx,
@@ -62,7 +105,7 @@ class GameViewModel(
                 )
 
                 val newHistory = currentState.history + listOf(currentState.jars)
-                val isCompleted = gameEngine.checkLevelCompleted(newJars)
+                val isCompleted = gameEngine.checkLevelCompleted(newJars, currentState.customerOrder)
 
                 _uiState.update {
                     it.copy(
@@ -76,6 +119,7 @@ class GameViewModel(
                 }
 
                 if (isCompleted) {
+                    soundManager?.playLevelCompleteSound()
                     onLevelCompleted()
                 }
             } else {
@@ -132,8 +176,13 @@ class GameViewModel(
     private fun onLevelCompleted() {
         viewModelScope.launch {
             preferencesRepository.incrementCompletedLevels()
-            val currentUnlocked = preferencesRepository.unlockedHerbsFlow.first()
 
+            if (_uiState.value.isDailyChallenge) {
+                // Recompensa especial por desafío diario (+3 frascos/estamina)
+                preferencesRepository.addStamina(3)
+            }
+
+            val currentUnlocked = preferencesRepository.unlockedHerbsFlow.first()
             val nextLockedHerb = Herb.entries.firstOrNull { it.id !in currentUnlocked }
             if (nextLockedHerb != null) {
                 preferencesRepository.unlockHerb(nextLockedHerb.id)
