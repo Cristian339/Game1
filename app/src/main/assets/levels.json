@@ -23,9 +23,9 @@
     "levelNumber": 3,
     "jarCapacity": 4,
     "jars": [
-      ["rose", "mint", "cinnamon", "mint"],
-      ["cinnamon", "rose", "mint", "cinnamon"],
-      ["mint", "cinnamon", "rose", "rose"],
+      ["?chamomile", "?mint", "?cinnamon", "mint"],
+      ["?cinnamon", "?chamomile", "?mint", "cinnamon"],
+      ["?mint", "?cinnamon", "?chamomile", "chamomile"],
       [],
       []
     ]

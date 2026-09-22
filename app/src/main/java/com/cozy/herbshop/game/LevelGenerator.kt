@@ -50,8 +50,25 @@ class LevelGenerator(
             }
 
             if (solver.isSolvable(initialJars)) {
-                val jsonJars = initialJars.map { jar ->
-                    jar.stack.map { it.id }
+                val shouldAddMystery = levelNumber >= 3
+                val shouldAddSealed = levelNumber >= 4
+                var sealedAdded = false
+
+                val jsonJars = initialJars.mapIndexed { jarIndex, jar ->
+                    val isSealedJar = shouldAddSealed && !sealedAdded && jarIndex == 0 && jar.layers.isNotEmpty()
+                    if (isSealedJar) sealedAdded = true
+
+                    jar.layers.mapIndexed { layerIndex, layer ->
+                        val isTop = layerIndex == jar.layers.lastIndex
+                        val isMystery = shouldAddMystery && !isTop && random.nextFloat() < 0.25f
+                        val isFrozen = levelNumber >= 5 && isTop && random.nextFloat() < 0.20f
+
+                        var idStr = layer.herb.id
+                        if (isMystery) idStr = "?$idStr"
+                        if (isFrozen) idStr = "frozen:$idStr"
+                        if (isSealedJar && layerIndex == 0) idStr = "sealed:$idStr"
+                        idStr
+                    }
                 }
                 return GameLevel(
                     levelNumber = levelNumber,
