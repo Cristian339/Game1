@@ -3,10 +3,81 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Sombra suave del frasco -->
     <path
-        android:fillColor="#795548"
-        android:pathData="M24,24h60v60h-60z"/>
+        android:fillColor="#33000000"
+        android:pathData="M42,82 C42,86 46,88 54,88 C62,88 66,86 66,82 C66,80 62,79 54,79 C46,79 42,80 42,82 Z" />
+
+    <!-- Cuerpo del frasco (vidrio) -->
     <path
-        android:fillColor="#8BC34A"
-        android:pathData="M54,34 C44,34 38,44 38,54 C38,64 44,74 54,74 C64,74 70,64 70,54 C70,44 64,34 54,34 Z"/>
+        android:fillColor="#B3E5FC"
+        android:fillAlpha="0.55"
+        android:pathData="M40,46 L40,76 C40,81 44,84 54,84 C64,84 68,81 68,76 L68,46 Z" />
+
+    <!-- Capa inferior: menta -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M40,66 L40,76 C40,81 44,84 54,84 C64,84 68,81 68,76 L68,66 Z" />
+
+    <!-- Capa media: lavanda -->
+    <path
+        android:fillColor="#AB47BC"
+        android:pathData="M40,56 L40,66 L68,66 L68,56 Z" />
+
+    <!-- Capa superior: manzanilla -->
+    <path
+        android:fillColor="#FBC02D"
+        android:pathData="M40,46 L40,56 L68,56 L68,46 Z" />
+
+    <!-- Brillo del vidrio -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.45"
+        android:pathData="M43,48 L47,48 L47,74 C47,76 45,77 43,76 Z" />
+
+    <!-- Contorno del frasco -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#5D4037"
+        android:strokeWidth="2.2"
+        android:pathData="M40,46 L40,76 C40,81 44,84 54,84 C64,84 68,81 68,76 L68,46" />
+
+    <!-- Cuello del frasco -->
+    <path
+        android:fillColor="#BCAAA4"
+        android:pathData="M44,40 L64,40 L64,46 L44,46 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#5D4037"
+        android:strokeWidth="2"
+        android:pathData="M44,40 L64,40 L64,46 L44,46 Z" />
+
+    <!-- Corcho -->
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M46,32 C46,30 48,29 54,29 C60,29 62,30 62,32 L62,40 L46,40 Z" />
+    <path
+        android:fillColor="#6D4C41"
+        android:pathData="M48,33 L48,38 M54,32 L54,39 M60,33 L60,38"
+        android:strokeColor="#6D4C41"
+        android:strokeWidth="1.2" />
+
+    <!-- Hoja sobre el corcho -->
+    <path
+        android:fillColor="#43A047"
+        android:pathData="M54,29 C54,29 48,22 50,17 C52,12 58,14 58,14 C58,14 56,22 54,29 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2E7D32"
+        android:strokeWidth="1.2"
+        android:pathData="M54,28 C54,24 55,19 57,15" />
+
+    <!-- Pequeña flor en el corcho -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64,34 m-2.2,0 a2.2,2.2 0 1,1 4.4,0 a2.2,2.2 0 1,1 -4.4,0" />
+    <path
+        android:fillColor="#FBC02D"
+        android:pathData="M64,34 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
 </vector>

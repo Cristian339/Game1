@@ -20,8 +20,11 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = SoftCream,
     background = SoftCream,
     onBackground = CozyEarthyBrown,
-    surface = WarmBeige,
+    surface = CardCream,
     onSurface = CozyEarthyBrown,
+    surfaceVariant = WarmBeige,
+    onSurfaceVariant = CozyEarthyBrown,
+    outline = CozyEarthyBrown,
     tertiary = SoftGold
 )
 
@@ -34,8 +37,11 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = SoftCream,
     background = DarkCozyBackground,
     onBackground = DarkCozyText,
-    surface = DarkCozySurface,
+    surface = DarkCozyCard,
     onSurface = DarkCozyText,
+    surfaceVariant = DarkCozySurface,
+    onSurfaceVariant = DarkCozyText,
+    outline = DarkCozyText,
     tertiary = SoftGold
 )
 
