@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,11 +37,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cozy.herbshop.data.audio.AudioHub
+import com.cozy.herbshop.ui.components.shopSceneBackground
+import com.cozy.herbshop.ui.components.woodPlaqueBackground
 
 @Composable
 fun MainMenuScreen(
@@ -70,7 +75,7 @@ fun MainMenuScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .shopSceneBackground()
             .padding(24.dp)
     ) {
         Row(
@@ -100,20 +105,43 @@ fun MainMenuScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Cozy Herb Shop",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 32.sp
-            )
-            Text(
-                text = "Tienda de Té & Hierbas",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.94f)
+                    .woodPlaqueBackground()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Cozy Herb Shop",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        shadow = Shadow(
+                            color = androidx.compose.ui.graphics.Color(0xCC3E2723),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 3f),
+                            blurRadius = 6f
+                        )
+                    ),
+                    color = androidx.compose.ui.graphics.Color(0xFFFFF6E0),
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Tienda de Té & Hierbas",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        shadow = Shadow(
+                            color = androidx.compose.ui.graphics.Color(0x993E2723),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                            blurRadius = 4f
+                        )
+                    ),
+                    color = androidx.compose.ui.graphics.Color(0xFFEAD9B0),
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -135,6 +163,10 @@ fun MainMenuScreen(
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 2.dp
                 )
             ) {
                 Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
@@ -142,7 +174,8 @@ fun MainMenuScreen(
                 Text(
                     text = "JUGAR (Nivel ${uiState.currentLevel})",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -165,6 +198,10 @@ fun MainMenuScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.tertiary
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 1.dp
                 )
             ) {
                 Text(
@@ -187,9 +224,18 @@ fun MainMenuScreen(
                         onJournalClicked()
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(22.dp)
+                    shape = RoundedCornerShape(22.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 ) {
-                    Text("📖 Diario", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "📖 Diario",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
 
                 OutlinedButton(
@@ -198,9 +244,18 @@ fun MainMenuScreen(
                         onZenModeClicked()
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(22.dp)
+                    shape = RoundedCornerShape(22.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 ) {
-                    Text("🧘 Modo Zen", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "🧘 Modo Zen",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
@@ -251,10 +306,24 @@ private fun MenuNavigationButton(
         modifier = Modifier
             .fillMaxWidth(0.8f)
             .height(52.dp),
-        shape = RoundedCornerShape(26.dp)
+        shape = RoundedCornerShape(26.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }

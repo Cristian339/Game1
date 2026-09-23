@@ -121,4 +121,39 @@ class GameEngineTest {
         // Must complete successfully even if customer order is present!
         assertTrue(engine.checkLevelCompleted(listOf(jar1, jar2, emptyJar), order))
     }
+
+    @Test
+    fun testFrozenTopUnfreezesWhenOtherJarCompletes() {
+        val completed = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE))
+        val frozenJar = Jar(
+            id = 1,
+            capacity = 4,
+            layers = listOf(
+                JarLayer(herb = Herb.LAVENDER),
+                JarLayer(herb = Herb.LAVENDER),
+                JarLayer(herb = Herb.MINT),
+                JarLayer(herb = Herb.MINT, isFrozen = true)
+            )
+        )
+
+        val processed = engine.processSealedJars(listOf(completed, frozenJar))
+        assertFalse(processed[1].topLayer!!.isFrozen)
+        assertEquals(Herb.MINT, processed[1].topHerb)
+    }
+
+    @Test
+    fun testFrozenTopStaysFrozenWithoutProgress() {
+        val mixed = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.LAVENDER, Herb.CHAMOMILE, Herb.LAVENDER))
+        val frozenJar = Jar(
+            id = 1,
+            capacity = 4,
+            layers = listOf(
+                JarLayer(herb = Herb.MINT),
+                JarLayer(herb = Herb.MINT, isFrozen = true)
+            )
+        )
+
+        val processed = engine.processSealedJars(listOf(mixed, frozenJar))
+        assertTrue(processed[1].topLayer!!.isFrozen)
+    }
 }

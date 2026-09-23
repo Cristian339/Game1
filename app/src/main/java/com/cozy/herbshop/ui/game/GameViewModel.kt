@@ -43,7 +43,7 @@ class GameViewModel(
     fun loadLevel(levelNumber: Int) {
         viewModelScope.launch {
             val level = levelRepository.getLevel(levelNumber)
-            val initialJars = levelRepository.convertToJars(level)
+            val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
             _uiState.value = GameUiState(
                 levelNumber = levelNumber,
                 jars = initialJars,
@@ -56,7 +56,7 @@ class GameViewModel(
     fun loadDailyChallenge() {
         viewModelScope.launch {
             val level = levelRepository.getDailyChallengeLevel()
-            val initialJars = levelRepository.convertToJars(level)
+            val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
             _uiState.value = GameUiState(
                 levelNumber = 999,
                 jars = initialJars,
@@ -68,14 +68,23 @@ class GameViewModel(
 
     fun loadZenLevel() {
         viewModelScope.launch {
-            val level = levelRepository.getZenLevel()
-            val initialJars = levelRepository.convertToJars(level)
-            _uiState.value = GameUiState(
-                levelNumber = 0,
-                jars = initialJars,
-                isZenMode = true
-            )
+            _uiState.value = buildZenState()
         }
+    }
+
+    suspend fun loadNextZenLevel() {
+        _uiState.value = buildZenState()
+    }
+
+    private suspend fun buildZenState(): GameUiState {
+        val level = levelRepository.getZenLevel()
+        val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
+        return GameUiState(
+            levelNumber = 0,
+            jars = initialJars,
+            customerOrder = level.customerOrder,
+            isZenMode = true
+        )
     }
 
     fun onJarClicked(jarIndex: Int) {
@@ -225,10 +234,13 @@ class GameViewModel(
 
     private fun onLevelCompleted() {
         viewModelScope.launch {
+            val state = _uiState.value
+            if (state.isZenMode) return@launch
+
             preferencesRepository.incrementCompletedLevels()
             soundManager?.playReward()
 
-            if (_uiState.value.isDailyChallenge) {
+            if (state.isDailyChallenge) {
                 preferencesRepository.addStamina(3)
             }
 
@@ -240,8 +252,9 @@ class GameViewModel(
                 _uiState.update { it.copy(newlyUnlockedHerb = nextLockedHerb) }
             }
 
-            val nextLevel = _uiState.value.levelNumber + 1
-            preferencesRepository.updateCurrentLevel(nextLevel)
+            if (!state.isDailyChallenge) {
+                preferencesRepository.updateCurrentLevel(state.levelNumber + 1)
+            }
         }
     }
 }

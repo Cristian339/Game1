@@ -1,5 +1,6 @@
 package com.cozy.herbshop.ui.journal
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.CustomerLetter
+import com.cozy.herbshop.ui.components.cozyBackground
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 
 @Composable
@@ -108,7 +110,7 @@ fun JournalScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .cozyBackground()
             .padding(16.dp)
     ) {
         Row(
@@ -146,7 +148,16 @@ fun JournalScreen(
                         },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isUnlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        containerColor = if (isUnlocked) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    border = BorderStroke(
+                        1.5.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = if (isUnlocked) 0.20f else 0.12f)
                     )
                 ) {
                     Row(
@@ -159,17 +170,22 @@ fun JournalScreen(
                             Text(
                                 text = if (isUnlocked) letter.senderName else "Cliente Misterioso",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (isUnlocked) letter.letterTitle else "Completa más pedidos para desbloquear.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                             )
                         }
                         if (!isUnlocked) {
-                            Icon(imageVector = Icons.Default.Lock, contentDescription = null)
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
                         } else {
                             Icon(imageVector = Icons.Default.Mail, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }

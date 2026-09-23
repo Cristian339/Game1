@@ -1,8 +1,32 @@
-Cozy Herb Shop — Audio Credits (all free for commercial use)
+Cozy Herb Shop — Asset Credits (all free for commercial use)
 ============================================================
 
-All audio assets in this project are free of copyright restrictions
-for commercial use (Google Play Store). No attribution is required.
+All assets in this project are free of copyright restrictions
+for commercial use (Google Play Store).
+
+GRAPHICS
+--------
+
+1. Fondo de tienda, frascos, capas de hierbas, corchos, sellos de cera,
+   confeti, rótulo de madera, texturas de papel/madera, escenario de menú
+   y resto de la interfaz:
+   Source: Arte procedural original de este proyecto (Jetpack Compose Canvas).
+   License: Original work — all rights held by the project author.
+   Notes: No third-party image files are required for core gameplay art.
+          Fully commercial-safe for Google Play (no external license risk).
+
+2. App icon (ic_launcher / adaptive icon / monochrome):
+   Source: Original vector artwork created for this project
+           (ic_launcher_foreground.xml, ic_launcher_monochrome.xml).
+   License: Original work — all rights held by the project author.
+   Notes: Depicts a layered herb jar with cork and leaf; no third-party
+          icon packs or trademarks. Safe for Google Play Store listing.
+
+Evaluated third-party CC0 / free packs (not bundled to preserve art style
+consistency; retained only as optional future sources):
+   - Kenney — Foliage Pack (CC0) — https://kenney.nl
+   - OpenGameArt — 48 Alchemy Herbs Icons Pack (OGA-BY 3.0 / CraftPix free license)
+   - OpenGameArt — various CC0 herb/foliage collections
 
 SOUND EFFECTS
 -------------

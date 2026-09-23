@@ -3,10 +3,12 @@ package com.cozy.herbshop.game
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.random.Random
 
 class LevelSolverTest {
 
@@ -58,5 +60,25 @@ class LevelSolverTest {
 
         val isSolvable = solver.isSolvable(jars)
         assertTrue("Generated level should be solvable by LevelSolver", isSolvable)
+    }
+
+    @Test
+    fun testDailyDifficultyLevelHasNoFrozenLayers() {
+        // Daily challenge uses difficulty 4 (mystery + sealed, never frozen)
+        val level = generator.generateSolvableLevel(
+            levelNumber = 4,
+            numHerbTypes = 4,
+            emptyJars = 2,
+            jarCapacity = 4,
+            random = Random(42)
+        )
+
+        val hasFrozen = level.jars.any { jar -> jar.any { it.startsWith("frozen:") } }
+        assertFalse("Difficulty 4 must not generate frozen layers", hasFrozen)
+
+        val jars = level.jars.mapIndexed { index, herbIds ->
+            Jar(id = index, capacity = level.jarCapacity, stack = herbIds.map { Herb.fromId(it.removePrefix("sealed:").removePrefix("?")) })
+        }
+        assertTrue("Daily-difficulty level should be solvable", solver.isSolvable(jars))
     }
 }

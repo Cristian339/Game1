@@ -205,9 +205,7 @@ fun CozyHerbShopAppNavHost(
                 levelNumber = 0,
                 onBackClicked = { navController.popBackStack() },
                 onLevelCompleted = {
-                    navController.navigate("main_menu") {
-                        popUpTo("zen_mode") { inclusive = true }
-                    }
+                    // El Modo Zen gestiona su propia transición infinita en GameScreen
                 },
                 onWatchAdForHint = { gameViewModel.requestHint() },
                 onWatchAdForExtraJar = { gameViewModel.addExtraJar() }

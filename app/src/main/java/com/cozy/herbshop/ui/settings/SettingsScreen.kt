@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Nature
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
+import com.cozy.herbshop.ui.components.cozyBackground
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.rememberScrollState
@@ -69,7 +71,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .cozyBackground()
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
@@ -95,7 +97,15 @@ fun SettingsScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -255,7 +265,15 @@ fun SettingsScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -284,12 +302,12 @@ fun SettingsScreen(
                             Text(
                                 text = ach.title,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isUnlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                color = if (isUnlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
                             )
                             Text(
                                 text = ach.description,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                             )
                         }
                         Text(
@@ -305,7 +323,15 @@ fun SettingsScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -322,13 +348,19 @@ fun SettingsScreen(
                 Text(
                     text = "Diseñado para ser 100% offline y publicable en Google Play con costo cero.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Audio: dominio público (CC0) — Kenney, BigSoundBank, OpenGameArt.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Gráficos: arte procedural original del juego + assets CC0 (ver CREDITS.txt).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 )
             }
         }

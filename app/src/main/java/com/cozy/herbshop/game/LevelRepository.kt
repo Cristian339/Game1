@@ -76,13 +76,15 @@ class LevelRepository(
         val todaySeed = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
         val random = Random(todaySeed)
 
+        // levelNumber 999 es solo un identificador de navegación; la dificultad
+        // real se genera con 4 (misterio + sellado, sin congelados rotos).
         val level = levelGenerator.generateSolvableLevel(
-            levelNumber = 999,
+            levelNumber = 4,
             numHerbTypes = 4,
             emptyJars = 2,
             jarCapacity = 4,
             random = random
-        )
+        ).copy(levelNumber = 999)
 
         val dailyOrder = CustomerOrder(
             id = "daily_$todaySeed",

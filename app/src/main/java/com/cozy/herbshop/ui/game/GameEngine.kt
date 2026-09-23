@@ -84,18 +84,22 @@ class GameEngine {
 
     fun processSealedJars(jars: List<Jar>): List<Jar> {
         val completedFilledJars = jars.count { !it.isEmpty && it.isFull && it.layers.all { l -> !l.isHidden && !l.isFrozen && l.herb == it.layers.first().herb } }
-        if (completedFilledJars > 0 && jars.any { it.isSealed }) {
-            val mutable = jars.toMutableList()
-            var unsealedCount = 0
-            for (i in mutable.indices) {
-                if (mutable[i].isSealed && unsealedCount < completedFilledJars) {
-                    mutable[i] = mutable[i].unseal().revealTopLayer().unfreezeTopLayer()
-                    unsealedCount++
-                }
+        if (completedFilledJars == 0) return jars
+
+        val mutable = jars.toMutableList()
+        var unsealedCount = 0
+        var changed = false
+        for (i in mutable.indices) {
+            if (mutable[i].isSealed && unsealedCount < completedFilledJars) {
+                mutable[i] = mutable[i].unseal().revealTopLayer().unfreezeTopLayer()
+                unsealedCount++
+                changed = true
+            } else if (!mutable[i].isSealed && mutable[i].topLayer?.isFrozen == true) {
+                mutable[i] = mutable[i].unfreezeTopLayer()
+                changed = true
             }
-            return mutable
         }
-        return jars
+        return if (changed) mutable else jars
     }
 
     fun revealTopLayers(jars: List<Jar>): List<Jar> {

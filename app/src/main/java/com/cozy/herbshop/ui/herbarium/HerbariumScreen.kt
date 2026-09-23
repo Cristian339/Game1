@@ -1,6 +1,7 @@
 package com.cozy.herbshop.ui.herbarium
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,10 @@ import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.TeaRecipe
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
+import com.cozy.herbshop.ui.components.cozyBackground
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun HerbariumScreen(
@@ -136,7 +141,7 @@ fun HerbariumScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .cozyBackground()
             .padding(16.dp)
     ) {
         Row(
@@ -161,17 +166,30 @@ fun HerbariumScreen(
 
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { AudioHub.sound.playTab(); selectedTab = 0 },
-                text = { Text("🌱 Hierbas", fontWeight = FontWeight.Bold) }
+                text = {
+                    Text(
+                        "🌱 Hierbas",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { AudioHub.sound.playTab(); selectedTab = 1 },
-                text = { Text("📜 Recetario", fontWeight = FontWeight.Bold) }
+                text = {
+                    Text(
+                        "📜 Recetario",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             )
         }
 
@@ -195,7 +213,16 @@ fun HerbariumScreen(
                             },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isUnlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                            containerColor = if (isUnlocked) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        border = BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = if (isUnlocked) 0.20f else 0.12f)
                         )
                     ) {
                         Column(
@@ -204,20 +231,52 @@ fun HerbariumScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(60.dp)
+                                    .size(64.dp)
                                     .background(
-                                        color = if (isUnlocked) herb.defaultColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                        brush = if (isUnlocked) Brush.radialGradient(
+                                            colors = listOf(
+                                                herb.defaultColor.copy(alpha = 1f),
+                                                herb.defaultColor.copy(
+                                                    red = herb.defaultColor.red * 0.75f,
+                                                    green = herb.defaultColor.green * 0.75f,
+                                                    blue = herb.defaultColor.blue * 0.75f
+                                                )
+                                            ),
+                                            center = Offset(22f, 18f),
+                                            radius = 48f
+                                        ) else Brush.radialGradient(
+                                            colors = listOf(
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f),
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)
+                                            )
+                                        ),
                                         shape = CircleShape
+                                    )
+                                    .then(
+                                        if (isUnlocked) Modifier.border(
+                                            BorderStroke(
+                                                2.5.dp,
+                                                herb.defaultColor.copy(
+                                                    red = herb.defaultColor.red * 0.6f,
+                                                    green = herb.defaultColor.green * 0.6f,
+                                                    blue = herb.defaultColor.blue * 0.6f
+                                                )
+                                            ),
+                                            CircleShape
+                                        ) else Modifier.border(
+                                            BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+                                            CircleShape
+                                        )
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isUnlocked) {
-                                    Text(text = herb.symbol, fontSize = 24.sp)
+                                    Text(text = herb.symbol, fontSize = 26.sp)
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = "Bloqueado",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
                                     )
                                 }
                             }
@@ -227,7 +286,8 @@ fun HerbariumScreen(
                             Text(
                                 text = if (isUnlocked) herb.displayName else "???",
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -235,7 +295,7 @@ fun HerbariumScreen(
                             Text(
                                 text = if (isUnlocked) herb.description else "Desbloquea completando niveles.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isUnlocked) 0.85f else 0.75f)
                             )
                         }
                     }
@@ -252,7 +312,16 @@ fun HerbariumScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isRecipeUnlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                            containerColor = if (isRecipeUnlocked) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        border = BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = if (isRecipeUnlocked) 0.20f else 0.12f)
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -260,11 +329,16 @@ fun HerbariumScreen(
                                 Text(
                                     text = if (isRecipeUnlocked) recipe.name else "Receta Secreta ???",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
                                 if (!isRecipeUnlocked) {
-                                    Icon(imageVector = Icons.Default.Lock, contentDescription = null)
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
                                 }
                             }
 
@@ -272,7 +346,8 @@ fun HerbariumScreen(
 
                             Text(
                                 text = if (isRecipeUnlocked) recipe.description else "Desbloquea las hierbas requeridas en el juego para revelar esta receta.",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
                             )
 
                             if (isRecipeUnlocked) {

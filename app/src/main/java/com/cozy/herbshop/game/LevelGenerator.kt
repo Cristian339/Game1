@@ -29,7 +29,7 @@ class LevelGenerator(
             }
 
             val totalJars = solvedStacks.size
-            val shuffleSteps = 20 + levelNumber * 3
+            val shuffleSteps = 20 + minOf(levelNumber, 30) * 3
 
             for (step in 0 until shuffleSteps) {
                 val srcIdx = random.nextInt(totalJars)
