@@ -1,6 +1,7 @@
 package com.cozy.herbshop.ui.game
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -45,6 +46,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontStyle
@@ -60,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.ui.components.CozyJarItem
+import com.cozy.herbshop.ui.components.cozyBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -80,6 +84,7 @@ fun GameScreen(
     onWatchAdForExtraJar: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val contentAlpha = remember { Animatable(1f) }
 
     LaunchedEffect(levelNumber) {
         if (levelNumber == 999) {
@@ -91,10 +96,24 @@ fun GameScreen(
         }
     }
 
-    LaunchedEffect(uiState.isLevelCompleted) {
-        if (uiState.isLevelCompleted) {
-            onLevelCompleted()
-        }
+    LaunchedEffect(Unit) {
+        snapshotFlow { uiState.isLevelCompleted }
+            .collect { completed ->
+                if (!completed) return@collect
+                if (uiState.isZenMode) {
+                    contentAlpha.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
+                    )
+                    viewModel.loadNextZenLevel()
+                    contentAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing)
+                    )
+                } else {
+                    onLevelCompleted()
+                }
+            }
     }
 
     val jarRootBounds = remember { mutableStateMapOf<Int, Rect>() }
@@ -103,11 +122,15 @@ fun GameScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .cozyBackground()
             .padding(16.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = contentAlpha.value
+                }
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
