@@ -1,6 +1,7 @@
 package com.cozy.herbshop.ui.shop
 
 import android.app.Activity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +62,7 @@ fun ShopScreen(
     val isThemePackUnlocked by billingManager.isThemePackUnlocked.collectAsState()
     val goldLeaves by repository.goldLeavesFlow.collectAsState(initial = 50)
     val unlockedDecorations by repository.unlockedDecorationsFlow.collectAsState(initial = emptySet())
+    val unlockedAsmrPacks by repository.unlockedAsmrPacksFlow.collectAsState(initial = setOf("asmr_cristal"))
 
     val decorations = remember {
         listOf(
@@ -68,6 +70,14 @@ fun ShopScreen(
             DecorationItem("luces_hadas", "Guirnalda de Luces Cálidas", "Iluminación", 40, "✨", "Luces de ambiente suave para el mostrador."),
             DecorationItem("estufa_calida", "Estufa de Leña Clásica", "Muebles", 60, "🔥", "Aporta calor y aroma a té tostado."),
             DecorationItem("plantas_cozy", "Macetas de Helechos Silvestres", "Plantas", 35, "🌿", "Plantas decorativas frescas para la entrada.")
+        )
+    }
+
+    val asmrPacks = remember {
+        listOf(
+            DecorationItem("asmr_cristal", "ASMR Cristal Pro", "Audio", 0, "🔔", "Efectos cristalinos de resonancia suave al seleccionar frascos."),
+            DecorationItem("asmr_lluvia", "Lluvia Relajante", "Audio", 40, "🌧️", "Sonido ambiental de lluvia cayendo en la ventana."),
+            DecorationItem("asmr_chimenea", "Chimenea de Leña", "Audio", 40, "🔥", "Cálido chisporroteo de leña para tus tardes de juego.")
         )
     }
 
@@ -90,9 +100,11 @@ fun ShopScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Tienda & Decoración",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                text = "Tienda",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false
             )
             Spacer(modifier = Modifier.weight(1f))
             Card(
@@ -103,6 +115,8 @@ fun ShopScreen(
                     text = "🍃 $goldLeaves",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -177,6 +191,68 @@ fun ShopScreen(
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Text(text = if (isPurchased) "Equipado ✓" else "${item.priceInLeaves} 🍃")
+                        }
+                    }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🎧", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Paquetes de Sonido ASMR",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Desbloquea ambientes y efectos de audio ASMR con tus Hojas de Oro.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                asmrPacks.forEach { pack ->
+                    val isPurchased = pack.id in unlockedAsmrPacks
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = pack.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = pack.name, fontWeight = FontWeight.Bold)
+                            Text(text = pack.description, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (!isPurchased && goldLeaves >= pack.priceInLeaves) {
+                                    AudioHub.sound.playPurchase()
+                                } else {
+                                    AudioHub.sound.playUiError()
+                                }
+                                scope.launch {
+                                    repository.unlockAsmrPack(pack.id, pack.priceInLeaves)
+                                }
+                            },
+                            enabled = !isPurchased && goldLeaves >= pack.priceInLeaves,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(text = if (isPurchased) "Desbloqueado ✓" else "${pack.priceInLeaves} 🍃")
                         }
                     }
                 }

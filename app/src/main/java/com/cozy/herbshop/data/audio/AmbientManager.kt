@@ -4,6 +4,13 @@ import android.content.Context
 import android.media.MediaPlayer
 import com.cozy.herbshop.R
 
+data class AmbientOption(
+    val id: String,
+    val label: String,
+    val emoji: String,
+    val resId: Int
+)
+
 class AmbientManager(private val context: Context) {
 
     private var player: MediaPlayer? = null
@@ -18,10 +25,7 @@ class AmbientManager(private val context: Context) {
         }
         if (currentSound == soundName && player?.isPlaying == true) return
         stop()
-        val resId = when (soundName.lowercase()) {
-            "lluvia", "rain" -> R.raw.amb_rain
-            else -> R.raw.amb_rain
-        }
+        val resId = resIdFor(soundName)
         try {
             player = MediaPlayer.create(context, resId)?.apply {
                 isLooping = true
@@ -57,4 +61,20 @@ class AmbientManager(private val context: Context) {
     }
 
     fun release() = stop()
+
+    companion object {
+        val OPTIONS = listOf(
+            AmbientOption("lluvia", "Lluvia", "🌧️", R.raw.amb_rain),
+            AmbientOption("bosque", "Bosque", "🌲", R.raw.amb_forest),
+            AmbientOption("arroyo", "Arroyo", "💧", R.raw.amb_stream),
+            AmbientOption("lumbre", "Lumbre", "🔥", R.raw.amb_fire),
+            AmbientOption("noche", "Noche", "🦗", R.raw.amb_night)
+        )
+
+        const val DEFAULT_SOUND = "lluvia"
+
+        fun resIdFor(soundName: String): Int =
+            OPTIONS.firstOrNull { it.id.equals(soundName, ignoreCase = true) }?.resId
+                ?: R.raw.amb_rain
+    }
 }
