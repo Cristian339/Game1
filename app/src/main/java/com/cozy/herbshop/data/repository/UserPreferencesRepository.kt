@@ -36,6 +36,10 @@ class UserPreferencesRepository(private val context: Context) {
         val COLORBLIND_MODE = booleanPreferencesKey("colorblind_mode")
         val AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
         val CUSTOMER_LETTERS = stringSetPreferencesKey("customer_letters")
+        val TUTORIAL_BASIC_DONE = booleanPreferencesKey("tutorial_basic_done")
+        val TUTORIAL_RECIPE_DONE = booleanPreferencesKey("tutorial_recipe_done")
+        val UNDO_TOKENS = intPreferencesKey("undo_tokens")
+        val UNLOCKED_ASMR_PACKS = stringSetPreferencesKey("unlocked_asmr_packs")
 
         const val MAX_STAMINA = 5
         const val STAMINA_REGEN_INTERVAL_MS = 15 * 60 * 1000L
@@ -103,6 +107,70 @@ class UserPreferencesRepository(private val context: Context) {
 
     val customerLettersFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
+    }
+
+    val tutorialBasicDoneFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[TUTORIAL_BASIC_DONE] ?: false
+    }.distinctUntilChanged()
+
+    val tutorialRecipeDoneFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[TUTORIAL_RECIPE_DONE] ?: false
+    }.distinctUntilChanged()
+
+    val undoTokensFlow: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[UNDO_TOKENS] ?: 3
+    }
+
+    val unlockedAsmrPacksFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[UNLOCKED_ASMR_PACKS] ?: setOf("asmr_cristal")
+    }
+
+    suspend fun consumeUndoToken(): Boolean {
+        var success = false
+        context.dataStore.edit { prefs ->
+            val current = prefs[UNDO_TOKENS] ?: 3
+            if (current > 0) {
+                prefs[UNDO_TOKENS] = current - 1
+                success = true
+            }
+        }
+        return success
+    }
+
+    suspend fun buyUndoTokens(amount: Int = 3, cost: Int = 15): Boolean {
+        var success = false
+        context.dataStore.edit { prefs ->
+            val leaves = prefs[GOLD_LEAVES] ?: 50
+            if (leaves >= cost) {
+                prefs[GOLD_LEAVES] = leaves - cost
+                val current = prefs[UNDO_TOKENS] ?: 3
+                prefs[UNDO_TOKENS] = current + amount
+                success = true
+            }
+        }
+        return success
+    }
+
+    suspend fun unlockAsmrPack(packId: String, cost: Int = 40): Boolean {
+        var success = false
+        context.dataStore.edit { prefs ->
+            val leaves = prefs[GOLD_LEAVES] ?: 50
+            if (leaves >= cost) {
+                prefs[GOLD_LEAVES] = leaves - cost
+                val set = prefs[UNLOCKED_ASMR_PACKS] ?: setOf("asmr_cristal")
+                prefs[UNLOCKED_ASMR_PACKS] = set + packId
+                success = true
+            }
+        }
+        return success
+    }
+
+    suspend fun setTutorialBasicDone() {
+        context.dataStore.edit { prefs -> prefs[TUTORIAL_BASIC_DONE] = true }
+    }
+
+    suspend fun setTutorialRecipeDone() {
+        context.dataStore.edit { prefs -> prefs[TUTORIAL_RECIPE_DONE] = true }
     }
 
     suspend fun setAmbientSound(sound: String) {
