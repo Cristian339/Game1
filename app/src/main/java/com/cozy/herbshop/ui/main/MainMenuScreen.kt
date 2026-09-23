@@ -45,6 +45,9 @@ import androidx.compose.ui.unit.sp
 fun MainMenuScreen(
     viewModel: MainViewModel,
     onPlayClicked: () -> Unit,
+    onDailyChallengeClicked: () -> Unit,
+    onZenModeClicked: () -> Unit,
+    onJournalClicked: () -> Unit,
     onHerbariumClicked: () -> Unit,
     onShopClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
@@ -103,15 +106,15 @@ fun MainMenuScreen(
                 text = "Cozy Herb Shop",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 36.sp
+                fontSize = 32.sp
             )
             Text(
                 text = "Tienda de Té & Hierbas",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Button(
                 onClick = {
@@ -121,10 +124,10 @@ fun MainMenuScreen(
                     )
                 },
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(60.dp)
+                    .fillMaxWidth(0.85f)
+                    .height(56.dp)
                     .scale(pulseScale),
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -133,12 +136,60 @@ fun MainMenuScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "JUGAR (Nivel ${uiState.currentLevel})",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Button(
+                onClick = {
+                    viewModel.consumeStaminaForGame(
+                        onSuccess = onDailyChallengeClicked,
+                        onNoStamina = onWatchAdForStamina
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary
+                )
+            ) {
+                Text(
+                    text = "📅 Desafío Diario (+3 🌸)",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(0.85f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onJournalClicked,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    Text("📖 Diario", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onZenModeClicked,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    Text("🧘 Modo Zen", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             MenuNavigationButton(
                 text = "Herbario (${uiState.unlockedHerbsCount} descubiertas)",
