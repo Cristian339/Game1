@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.TeaRecipe
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
@@ -142,7 +143,10 @@ fun HerbariumScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBackClicked) {
+            IconButton(onClick = {
+                AudioHub.sound.playUiBack()
+                onBackClicked()
+            }) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -161,12 +165,12 @@ fun HerbariumScreen(
         ) {
             Tab(
                 selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
+                onClick = { AudioHub.sound.playTab(); selectedTab = 0 },
                 text = { Text("🌱 Hierbas", fontWeight = FontWeight.Bold) }
             )
             Tab(
                 selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
+                onClick = { AudioHub.sound.playTab(); selectedTab = 1 },
                 text = { Text("📜 Recetario", fontWeight = FontWeight.Bold) }
             )
         }
@@ -185,7 +189,10 @@ fun HerbariumScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isUnlocked) { selectedHerb = herb },
+                            .clickable(enabled = isUnlocked) {
+                                if (isUnlocked) AudioHub.sound.playDialogOpen()
+                                selectedHerb = herb
+                            },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isUnlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)

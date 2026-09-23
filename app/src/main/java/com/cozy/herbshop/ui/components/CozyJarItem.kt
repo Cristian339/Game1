@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,16 +35,30 @@ import com.cozy.herbshop.data.model.Jar
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.geometry.Rect
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun CozyJarItem(
     jar: Jar,
     isSelected: Boolean,
+    isPourSource: Boolean = false,
+    isPourTarget: Boolean = false,
+    pourAngle: Float = 0f,
     onClick: () -> Unit,
+    onPositioned: ((Rect) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
@@ -60,21 +75,101 @@ fun CozyJarItem(
     )
 
     val offsetY by animateFloatAsState(
-        targetValue = if (isSelected) -18f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = when {
+            isPourSource -> -40f
+            isSelected -> -18f
+            else -> 0f
+        },
+        animationSpec = tween(durationMillis = 280),
         label = "jarSelectionOffset"
     )
 
+    // El frasco origen se acerca al destino mientras se inclina (parece que lo alcance)
+    val shiftX by animateFloatAsState(
+        targetValue = if (isPourSource) (if (pourAngle >= 0f) 22f else -22f) else 0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "jarPourShift"
+    )
+
+    // Inclinación con muelle: ligero rebote al llegar al ángulo de vertido
     val rotationZ by animateFloatAsState(
-        targetValue = if (isSelected) -12f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = when {
+            isPourSource -> pourAngle
+            isSelected -> -10f
+            else -> 0f
+        },
+        animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow),
         label = "jarRotationOffset"
     )
 
+    // Temblor sutil de la mano mientras se vierte
+    val infiniteTilt = rememberInfiniteTransition(label = "pourWobble")
+    val pourWobble by infiniteTilt.animateFloat(
+        initialValue = -1.6f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pourWobbleValue"
+    )
+
+    val pourScale by animateFloatAsState(
+        targetValue = if (isPourSource) 1.08f else 1f,
+        animationSpec = tween(durationMillis = 280),
+        label = "jarPourScale"
+    )
+
+    // Impacto en el frasco destino cuando el chorro lo alcanza (~430ms):
+    // se hunde y estira un instante, luego el muelle lo devuelve a su sitio
+    val targetLift = remember { Animatable(0f) }
+    val targetSquashX = remember { Animatable(1f) }
+    val targetSquashY = remember { Animatable(1f) }
+    LaunchedEffect(isPourTarget) {
+        if (isPourTarget) {
+            delay(430)
+            targetLift.snapTo(-7f)
+            targetSquashX.snapTo(1.06f)
+            targetSquashY.snapTo(0.93f)
+            launch { targetLift.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 900f)) }
+            launch { targetSquashX.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 700f)) }
+            launch { targetSquashY.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 700f)) }
+        } else {
+            targetLift.snapTo(0f)
+            targetSquashX.snapTo(1f)
+            targetSquashY.snapTo(1f)
+        }
+    }
+
+    val effectiveRotation = rotationZ + if (isPourSource) pourWobble else 0f
+    val effectiveOffsetY = offsetY + if (isPourTarget) targetLift.value else 0f
+    val effectiveScaleX = pourScale * (if (isPourTarget) targetSquashX.value else 1f)
+    val effectiveScaleY = pourScale * (if (isPourTarget) targetSquashY.value else 1f)
+    val transformOrigin = when {
+        isPourSource && pourAngle > 0f -> TransformOrigin(0.62f, 0.9f)
+        isPourSource && pourAngle < 0f -> TransformOrigin(0.38f, 0.9f)
+        else -> TransformOrigin(0.5f, 0.85f)
+    }
+
     Box(
         modifier = modifier
-            .offset(y = offsetY.dp)
-            .graphicsLayer(rotationZ = rotationZ)
+            .offset(x = shiftX.dp, y = effectiveOffsetY.dp)
+            .graphicsLayer(
+                rotationZ = effectiveRotation,
+                scaleX = effectiveScaleX,
+                scaleY = effectiveScaleY,
+                transformOrigin = transformOrigin
+            )
+            .onGloballyPositioned { coordinates ->
+                onPositioned?.invoke(
+                    Rect(
+                        coordinates.positionInRoot().x,
+                        coordinates.positionInRoot().y,
+                        coordinates.positionInRoot().x + coordinates.size.width,
+                        coordinates.positionInRoot().y + coordinates.size.height
+                    )
+                )
+            }
             .clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {

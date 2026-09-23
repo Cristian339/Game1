@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
@@ -26,6 +27,8 @@ class UserPreferencesRepository(private val context: Context) {
         val THEME_PACK_UNLOCKED = booleanPreferencesKey("theme_pack_unlocked")
         val SELECTED_THEME = stringPreferencesKey("selected_theme")
         val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
+        val MUSIC_ENABLED = booleanPreferencesKey("music_enabled")
+        val AMBIENT_ENABLED = booleanPreferencesKey("ambient_enabled")
         val COMPLETED_LEVELS_COUNT = intPreferencesKey("completed_levels_count")
         val GOLD_LEAVES = intPreferencesKey("gold_leaves")
         val UNLOCKED_DECORATIONS = stringSetPreferencesKey("unlocked_decorations")
@@ -64,7 +67,15 @@ class UserPreferencesRepository(private val context: Context) {
 
     val soundEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[SOUND_ENABLED] ?: true
-    }
+    }.distinctUntilChanged()
+
+    val musicEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[MUSIC_ENABLED] ?: true
+    }.distinctUntilChanged()
+
+    val ambientEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[AMBIENT_ENABLED] ?: true
+    }.distinctUntilChanged()
 
     val ambientSoundFlow: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[AMBIENT_SOUND] ?: "lluvia"
@@ -207,6 +218,18 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun setSoundEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[SOUND_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setMusicEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[MUSIC_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setAmbientEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[AMBIENT_ENABLED] = enabled
         }
     }
 }

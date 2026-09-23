@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.Herb
 
 @Composable
@@ -139,7 +140,10 @@ fun LevelCompleteScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onNextLevelClicked,
+                onClick = {
+                    AudioHub.sound.playUiConfirm()
+                    onNextLevelClicked()
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp)
             ) {
@@ -153,7 +157,10 @@ fun LevelCompleteScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = onMenuClicked,
+                onClick = {
+                    AudioHub.sound.playUiClick()
+                    onMenuClicked()
+                },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(25.dp)
             ) {

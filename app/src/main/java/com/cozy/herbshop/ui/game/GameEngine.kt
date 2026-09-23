@@ -5,6 +5,13 @@ import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.PourResult
 
+data class PourAnimation(
+    val sourceIndex: Int,
+    val targetIndex: Int,
+    val herb: Herb,
+    val count: Int
+)
+
 data class GameUiState(
     val levelNumber: Int = 1,
     val jars: List<Jar> = emptyList(),
@@ -17,7 +24,8 @@ data class GameUiState(
     val showExtraJarOption: Boolean = false,
     val customerOrder: CustomerOrder? = null,
     val isDailyChallenge: Boolean = false,
-    val isZenMode: Boolean = false
+    val isZenMode: Boolean = false,
+    val animatingPour: PourAnimation? = null
 ) {
     val canUndo: Boolean get() = history.isNotEmpty()
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.billing.BillingManager
 
 import androidx.compose.foundation.rememberScrollState
@@ -79,7 +80,10 @@ fun ShopScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBackClicked) {
+            IconButton(onClick = {
+                AudioHub.sound.playUiBack()
+                onBackClicked()
+            }) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -150,6 +154,11 @@ fun ShopScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
+                                if (!isPurchased && goldLeaves >= item.priceInLeaves) {
+                                    AudioHub.sound.playPurchase()
+                                } else {
+                                    AudioHub.sound.playUiError()
+                                }
                                 scope.launch {
                                     repository.unlockDecoration(item.id, item.priceInLeaves)
                                 }
@@ -194,6 +203,7 @@ fun ShopScreen(
 
                 Button(
                     onClick = {
+                        AudioHub.sound.playUiConfirm()
                         activity?.let {
                             billingManager.launchPurchaseFlow(it, BillingManager.PRODUCT_REMOVE_ADS)
                         }
@@ -237,6 +247,7 @@ fun ShopScreen(
 
                 Button(
                     onClick = {
+                        AudioHub.sound.playUiConfirm()
                         activity?.let {
                             billingManager.launchPurchaseFlow(it, BillingManager.PRODUCT_THEME_PACK)
                         }
@@ -282,7 +293,10 @@ fun ShopScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
-                    onClick = onWatchAdForStamina,
+                    onClick = {
+                        AudioHub.sound.playUiClick()
+                        onWatchAdForStamina()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp)
                 ) {

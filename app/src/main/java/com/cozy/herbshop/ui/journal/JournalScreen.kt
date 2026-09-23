@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.CustomerLetter
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 
@@ -114,7 +115,10 @@ fun JournalScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBackClicked) {
+            IconButton(onClick = {
+                AudioHub.sound.playUiBack()
+                onBackClicked()
+            }) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -136,7 +140,10 @@ fun JournalScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = isUnlocked) { selectedLetter = letter },
+                        .clickable(enabled = isUnlocked) {
+                            if (isUnlocked) AudioHub.sound.playDialogOpen()
+                            selectedLetter = letter
+                        },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isUnlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)

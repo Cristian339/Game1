@@ -1,6 +1,7 @@
 package com.cozy.herbshop.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +15,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Nature
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.launch
 
@@ -44,6 +49,9 @@ fun SettingsScreen(
     onBackClicked: () -> Unit
 ) {
     val soundEnabled by repository.soundEnabledFlow.collectAsState(initial = true)
+    val musicEnabled by repository.musicEnabledFlow.collectAsState(initial = true)
+    val ambientEnabled by repository.ambientEnabledFlow.collectAsState(initial = true)
+    val ambientSound by repository.ambientSoundFlow.collectAsState(initial = "lluvia")
     val colorblindMode by repository.colorblindModeFlow.collectAsState(initial = true)
     val unlockedAchievements by repository.unlockedAchievementsFlow.collectAsState(initial = emptySet())
 
@@ -69,7 +77,10 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBackClicked) {
+            IconButton(onClick = {
+                AudioHub.sound.playUiBack()
+                onBackClicked()
+            }) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -97,12 +108,12 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Sonidos Relajantes ASMR",
+                                text = "Efectos de Sonido",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Efectos suaves de agua y cristal",
+                                text = "Vertido de agua, cristal y UI",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -111,11 +122,101 @@ fun SettingsScreen(
                     Switch(
                         checked = soundEnabled,
                         onCheckedChange = { isChecked ->
-                            scope.launch {
-                                repository.setSoundEnabled(isChecked)
-                            }
+                            AudioHub.sound.playUiToggle()
+                            scope.launch { repository.setSoundEnabled(isChecked) }
                         }
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.MusicNote, contentDescription = null)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Música de Fondo",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Melodías relajantes en menú y partida",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = musicEnabled,
+                        onCheckedChange = { isChecked ->
+                            AudioHub.sound.playUiToggle()
+                            scope.launch { repository.setMusicEnabled(isChecked) }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Nature, contentDescription = null)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Sonido Ambiente ASMR",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Lluvia suave en el Modo Zen",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = ambientEnabled,
+                        onCheckedChange = { isChecked ->
+                            AudioHub.sound.playUiToggle()
+                            scope.launch { repository.setAmbientEnabled(isChecked) }
+                            if (!isChecked) AudioHub.ambient.stop()
+                        }
+                    )
+                }
+
+                if (ambientEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                AudioHub.sound.playUiClick()
+                                scope.launch { repository.setAmbientSound("lluvia") }
+                                AudioHub.ambient.play("lluvia")
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = ambientSound == "lluvia",
+                            onClick = {
+                                AudioHub.sound.playUiClick()
+                                scope.launch { repository.setAmbientSound("lluvia") }
+                                AudioHub.ambient.play("lluvia")
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("🌧️ Lluvia", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -144,9 +245,8 @@ fun SettingsScreen(
                     Switch(
                         checked = colorblindMode,
                         onCheckedChange = { isChecked ->
-                            scope.launch {
-                                repository.setColorblindMode(isChecked)
-                            }
+                            AudioHub.sound.playUiToggle()
+                            scope.launch { repository.setColorblindMode(isChecked) }
                         }
                     )
                 }
@@ -204,44 +304,6 @@ fun SettingsScreen(
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Sonidos Relajantes",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Efectos suaves de agua y cristal",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                Switch(
-                    checked = soundEnabled,
-                    onCheckedChange = { isChecked ->
-                        scope.launch {
-                            repository.setSoundEnabled(isChecked)
-                        }
-                    }
-                )
-            }
-        }
-
-        Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -261,6 +323,12 @@ fun SettingsScreen(
                     text = "Diseñado para ser 100% offline y publicable en Google Play con costo cero.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Audio: dominio público (CC0) — Kenney, BigSoundBank, OpenGameArt.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
         }

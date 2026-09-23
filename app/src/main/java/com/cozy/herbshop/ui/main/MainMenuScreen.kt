@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cozy.herbshop.data.audio.AudioHub
 
 @Composable
 fun MainMenuScreen(
@@ -118,9 +119,13 @@ fun MainMenuScreen(
 
             Button(
                 onClick = {
+                    AudioHub.sound.playUiConfirm()
                     viewModel.consumeStaminaForGame(
                         onSuccess = onPlayClicked,
-                        onNoStamina = onWatchAdForStamina
+                        onNoStamina = {
+                            AudioHub.sound.playNoStamina()
+                            onWatchAdForStamina()
+                        }
                     )
                 },
                 modifier = Modifier
@@ -145,9 +150,13 @@ fun MainMenuScreen(
 
             Button(
                 onClick = {
+                    AudioHub.sound.playUiClick()
                     viewModel.consumeStaminaForGame(
                         onSuccess = onDailyChallengeClicked,
-                        onNoStamina = onWatchAdForStamina
+                        onNoStamina = {
+                            AudioHub.sound.playNoStamina()
+                            onWatchAdForStamina()
+                        }
                     )
                 },
                 modifier = Modifier
@@ -173,7 +182,10 @@ fun MainMenuScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = onJournalClicked,
+                    onClick = {
+                        AudioHub.sound.playUiClick()
+                        onJournalClicked()
+                    },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(22.dp)
                 ) {
@@ -181,7 +193,10 @@ fun MainMenuScreen(
                 }
 
                 OutlinedButton(
-                    onClick = onZenModeClicked,
+                    onClick = {
+                        AudioHub.sound.playUiConfirm()
+                        onZenModeClicked()
+                    },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(22.dp)
                 ) {
@@ -194,7 +209,10 @@ fun MainMenuScreen(
             MenuNavigationButton(
                 text = "Herbario (${uiState.unlockedHerbsCount} descubiertas)",
                 icon = Icons.Default.List,
-                onClick = onHerbariumClicked
+                onClick = {
+                    AudioHub.sound.playUiClick()
+                    onHerbariumClicked()
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -202,7 +220,10 @@ fun MainMenuScreen(
             MenuNavigationButton(
                 text = "Tienda & Ads",
                 icon = Icons.Default.ShoppingCart,
-                onClick = onShopClicked
+                onClick = {
+                    AudioHub.sound.playUiClick()
+                    onShopClicked()
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -210,7 +231,10 @@ fun MainMenuScreen(
             MenuNavigationButton(
                 text = "Ajustes",
                 icon = Icons.Default.Settings,
-                onClick = onSettingsClicked
+                onClick = {
+                    AudioHub.sound.playUiClick()
+                    onSettingsClicked()
+                }
             )
         }
     }
