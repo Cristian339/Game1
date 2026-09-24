@@ -8,15 +8,15 @@ class LevelSolver {
 
     data class State(val jars: List<List<Herb>>)
 
-    fun isSolvable(initialJars: List<Jar>): Boolean {
-        return solve(initialJars) != null
+    fun isSolvable(initialJars: List<Jar>, requiredOrder: List<Herb>? = null): Boolean {
+        return solve(initialJars, requiredOrder) != null
     }
 
-    fun solve(initialJars: List<Jar>): List<Pair<Int, Int>>? {
+    fun solve(initialJars: List<Jar>, requiredOrder: List<Herb>? = null): List<Pair<Int, Int>>? {
         val initialCapacity = initialJars.maxOfOrNull { it.capacity } ?: 4
         val startState = canonicalState(initialJars.map { it.stack })
 
-        if (isSolvedState(startState, initialCapacity)) {
+        if (isSolvedState(startState, initialCapacity, requiredOrder)) {
             return emptyList()
         }
 
@@ -31,10 +31,10 @@ class LevelSolver {
 
         var solvedState: State? = null
 
-        while (queue.isNotEmpty() && visited.size < 15000) {
+        while (queue.isNotEmpty() && visited.size < 30000) {
             val current = queue.poll() ?: break
 
-            if (isSolvedState(current, initialCapacity)) {
+            if (isSolvedState(current, initialCapacity, requiredOrder)) {
                 solvedState = current
                 break
             }
@@ -73,7 +73,13 @@ class LevelSolver {
             }
         }
 
-        if (solvedState == null) return null
+        if (solvedState == null) {
+            try {
+                java.io.File(java.io.File(System.getProperty("java.io.tmpdir"), "solver_debug.txt").absolutePath)
+                    .appendText("exhausted=${visited.size} requiredOrder=$requiredOrder\n")
+            } catch (_: Exception) {}
+            return null
+        }
 
         val moves = mutableListOf<Pair<Int, Int>>()
         var curr: State? = solvedState
@@ -102,7 +108,19 @@ class LevelSolver {
         return State(jars)
     }
 
-    private fun isSolvedState(state: State, capacity: Int): Boolean {
+    private fun isSolvedState(state: State, capacity: Int, requiredOrder: List<Herb>? = null): Boolean {
+        if (requiredOrder != null) {
+            // Victoria con receta: un frasco igual a la receta, resto vacío o puro
+            val orderJarCount = state.jars.count { it == requiredOrder }
+            if (orderJarCount != 1) return false
+            for (stack in state.jars) {
+                if (stack == requiredOrder) continue
+                if (stack.isEmpty()) continue
+                if (stack.any { it != stack.first() }) return false
+            }
+            return true
+        }
+
         for (stack in state.jars) {
             if (stack.isEmpty()) continue
             if (stack.size != capacity) return false

@@ -36,6 +36,7 @@ import com.cozy.herbshop.ui.herbarium.HerbariumScreen
 import com.cozy.herbshop.ui.journal.JournalScreen
 import com.cozy.herbshop.ui.main.MainMenuScreen
 import com.cozy.herbshop.ui.main.MainViewModel
+import com.cozy.herbshop.ui.map.LevelMapScreen
 import com.cozy.herbshop.ui.settings.SettingsScreen
 import com.cozy.herbshop.ui.shop.ShopScreen
 import com.cozy.herbshop.ui.theme.CozyHerbShopTheme
@@ -171,6 +172,9 @@ fun CozyHerbShopAppNavHost(
                 onJournalClicked = {
                     navController.navigate("journal")
                 },
+                onLevelMapClicked = {
+                    navController.navigate("level_map")
+                },
                 onHerbariumClicked = {
                     navController.navigate("herbarium")
                 },
@@ -192,6 +196,27 @@ fun CozyHerbShopAppNavHost(
         composable("journal") {
             JournalScreen(
                 repository = preferencesRepository,
+                onBackClicked = { navController.popBackStack() }
+            )
+        }
+
+        composable("level_map") {
+            LevelMapScreen(
+                repository = preferencesRepository,
+                onLevelSelected = { selectedLevel ->
+                    mainViewModel.consumeStaminaForGame(
+                        onSuccess = {
+                            navController.navigate("game/$selectedLevel")
+                        },
+                        onNoStamina = {
+                            AudioHub.sound.playNoStamina()
+                            adManager.showRewardedAd(activity) {
+                                mainViewModel.addStaminaReward()
+                                AudioHub.sound.playReward()
+                            }
+                        }
+                    )
+                },
                 onBackClicked = { navController.popBackStack() }
             )
         }
@@ -288,6 +313,9 @@ fun CozyHerbShopAppNavHost(
             LevelCompleteScreen(
                 levelNumber = levelNum,
                 unlockedHerb = gameState.newlyUnlockedHerb,
+                orderFulfilled = gameState.orderFulfilled,
+                bonusLeaves = gameState.bonusLeaves,
+                recipeName = gameState.customerOrder?.recipeName,
                 onNextLevelClicked = {
                     gameViewModel.resetLevelCompleted()
                     val nextLevel = levelNum + 1

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
+import com.cozy.herbshop.data.audio.AmbientManager
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 import com.cozy.herbshop.ui.components.cozyBackground
 import kotlinx.coroutines.launch
@@ -53,7 +54,7 @@ fun SettingsScreen(
     val soundEnabled by repository.soundEnabledFlow.collectAsState(initial = true)
     val musicEnabled by repository.musicEnabledFlow.collectAsState(initial = true)
     val ambientEnabled by repository.ambientEnabledFlow.collectAsState(initial = true)
-    val ambientSound by repository.ambientSoundFlow.collectAsState(initial = "lluvia")
+    val ambientSound by repository.ambientSoundFlow.collectAsState(initial = AmbientManager.DEFAULT_SOUND)
     val colorblindMode by repository.colorblindModeFlow.collectAsState(initial = true)
     val unlockedAchievements by repository.unlockedAchievementsFlow.collectAsState(initial = emptySet())
 
@@ -187,7 +188,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Lluvia suave en el Modo Zen",
+                                text = "Paisajes sonoros naturales en el Modo Zen",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -205,27 +206,32 @@ fun SettingsScreen(
 
                 if (ambientEnabled) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                AudioHub.sound.playUiClick()
-                                scope.launch { repository.setAmbientSound("lluvia") }
-                                AudioHub.ambient.play("lluvia")
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = ambientSound == "lluvia",
-                            onClick = {
-                                AudioHub.sound.playUiClick()
-                                scope.launch { repository.setAmbientSound("lluvia") }
-                                AudioHub.ambient.play("lluvia")
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("🌧️ Lluvia", style = MaterialTheme.typography.bodyMedium)
+                    AmbientManager.OPTIONS.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    AudioHub.sound.playUiClick()
+                                    scope.launch { repository.setAmbientSound(option.id) }
+                                    AudioHub.ambient.play(option.id)
+                                }
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = ambientSound == option.id,
+                                onClick = {
+                                    AudioHub.sound.playUiClick()
+                                    scope.launch { repository.setAmbientSound(option.id) }
+                                    AudioHub.ambient.play(option.id)
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${option.emoji} ${option.label}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
 

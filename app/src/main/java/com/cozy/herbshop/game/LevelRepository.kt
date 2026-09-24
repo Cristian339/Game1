@@ -16,6 +16,16 @@ class LevelRepository(
     private val context: Context?,
     private val levelGenerator: LevelGenerator = LevelGenerator()
 ) {
+    companion object {
+        /**
+         * Niveles puerta: la receta es obligatoria y al cumplirla se desbloquea
+         * la siguiente hierba. Intervalos crecientes para alargar la campaña.
+         */
+        val GATE_LEVELS = setOf(4, 9, 15, 21, 28)
+
+        fun isGateLevel(levelNumber: Int): Boolean = levelNumber in GATE_LEVELS
+    }
+
     private val gson = Gson()
     private var jsonLevelsCache: List<GameLevel>? = null
 
@@ -38,10 +48,12 @@ class LevelRepository(
     }
 
     fun getLevel(levelNumber: Int): GameLevel {
+        val order = createCustomerOrderForLevel(levelNumber)
+        val requiredOrder = if (isGateLevel(levelNumber)) order?.requiredHerbs else null
+
         val predefined = loadPredefinedLevels()
         val found = predefined.find { it.levelNumber == levelNumber }
         if (found != null) {
-            val order = createCustomerOrderForLevel(levelNumber)
             return found.copy(customerOrder = order)
         }
 
@@ -53,9 +65,10 @@ class LevelRepository(
             levelNumber = levelNumber,
             numHerbTypes = numHerbs,
             emptyJars = emptyJars,
-            jarCapacity = jarCapacity
+            jarCapacity = jarCapacity,
+            requiredOrder = requiredOrder
         )
-        return generated.copy(customerOrder = createCustomerOrderForLevel(levelNumber))
+        return generated.copy(customerOrder = order)
     }
 
     fun getZenLevel(): GameLevel {
@@ -101,7 +114,54 @@ class LevelRepository(
     }
 
     private fun createCustomerOrderForLevel(levelNumber: Int): CustomerOrder? {
-        return when (levelNumber % 3) {
+        // Niveles de aprendizaje: sin receta
+        if (levelNumber in 1..3) return null
+
+        // Puertas de hierba: receta siempre presente, con hierbas disponibles en el nivel
+        if (isGateLevel(levelNumber)) {
+            return when (levelNumber) {
+                4 -> CustomerOrder(
+                    id = "gate_4",
+                    customerName = "Vendedora Rosa",
+                    dialogue = "¡Prepara manzanilla con romero y te daré romero para tu tienda!",
+                    recipeName = "Infusión del Caminante",
+                    requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.ROSEMARY, Herb.ROSEMARY)
+                )
+                9 -> CustomerOrder(
+                    id = "gate_9",
+                    customerName = "Mercader Zafiro",
+                    dialogue = "Trae un té de hibisco y te revelaré mi cofre de hibisco.",
+                    recipeName = "Té del Trópico Rojo",
+                    requiredHerbs = listOf(Herb.HIBISCUS, Herb.HIBISCUS, Herb.ROSEMARY, Herb.ROSEMARY)
+                )
+                15 -> CustomerOrder(
+                    id = "gate_15",
+                    customerName = "Sabia Aurelia",
+                    dialogue = "La canela solo se gana con paciencia… y con este té.",
+                    recipeName = "Elixir de Canela Antigua",
+                    requiredHerbs = listOf(Herb.CINNAMON, Herb.CINNAMON, Herb.HIBISCUS, Herb.HIBISCUS)
+                )
+                21 -> CustomerOrder(
+                    id = "gate_21",
+                    customerName = "Jardinera Luna",
+                    dialogue = "Mi caléndula es para quien domine la mezcla dorada.",
+                    recipeName = "Sérum de Caléndula",
+                    requiredHerbs = listOf(Herb.CALENDULA, Herb.CALENDULA, Herb.MINT, Herb.MINT)
+                )
+                else -> CustomerOrder(
+                    id = "gate_28",
+                    customerName = "Ermitaño Verde",
+                    dialogue = "El tomillo silvestre premia al último maestro té.",
+                    recipeName = "Bálsamo del Tomillo Silvestre",
+                    requiredHerbs = listOf(Herb.THYME, Herb.THYME, Herb.ROSEMARY, Herb.ROSEMARY)
+                )
+            }
+        }
+
+        // Entre puertas: receta opcional en los niveles pares (a veces sí, a veces no)
+        if (levelNumber % 2 != 0) return null
+
+        return when (levelNumber % 4) {
             0 -> CustomerOrder(
                 id = "order_$levelNumber",
                 customerName = "Abuela Clara",
@@ -109,12 +169,12 @@ class LevelRepository(
                 recipeName = "Infusión Dulce Calma",
                 requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.LAVENDER)
             )
-            1 -> CustomerOrder(
+            2 -> CustomerOrder(
                 id = "order_$levelNumber",
                 customerName = "Botánico Arthur",
                 dialogue = "Necesito una mezcla estimulante para estudiar.",
                 recipeName = "Elixir de Concentración",
-                requiredHerbs = listOf(Herb.MINT, Herb.MINT, Herb.ROSEMARY, Herb.ROSEMARY)
+                requiredHerbs = listOf(Herb.MINT, Herb.MINT, Herb.LAVENDER, Herb.LAVENDER)
             )
             else -> null
         }

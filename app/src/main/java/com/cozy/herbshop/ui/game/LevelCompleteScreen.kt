@@ -144,6 +144,9 @@ private fun PetalConfetti(modifier: Modifier = Modifier) {
 fun LevelCompleteScreen(
     levelNumber: Int,
     unlockedHerb: Herb?,
+    orderFulfilled: Boolean = false,
+    bonusLeaves: Int = 0,
+    recipeName: String? = null,
     onNextLevelClicked: () -> Unit,
     onMenuClicked: () -> Unit
 ) {
@@ -214,6 +217,47 @@ fun LevelCompleteScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                 )
+
+                if (orderFulfilled) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "📜 ¡Pedido cumplido!",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            if (recipeName != null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = recipeName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (bonusLeaves > 0) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "+$bonusLeaves 🍃 de bonus",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 

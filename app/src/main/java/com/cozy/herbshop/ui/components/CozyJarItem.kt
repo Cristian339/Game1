@@ -377,7 +377,7 @@ fun CozyJarItem(
     val offsetY by animateFloatAsState(
         targetValue = when {
             isPourSource -> -40f
-            isSelected -> -18f
+            isSelected -> -10f
             else -> 0f
         },
         animationSpec = tween(durationMillis = 280),
@@ -393,7 +393,6 @@ fun CozyJarItem(
     val rotationZ by animateFloatAsState(
         targetValue = when {
             isPourSource -> pourAngle
-            isSelected -> -10f
             else -> 0f
         },
         animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow),
@@ -484,11 +483,11 @@ fun CozyJarItem(
                     .width(60.dp)
                     .height(140.dp)
                     .shadow(
-                        elevation = if (isSelected || isPourSource) 12.dp else 7.dp,
+                        elevation = if (isPourSource) 12.dp else 5.dp,
                         shape = jarShape,
                         clip = false,
-                        ambientColor = Color(0x66000000),
-                        spotColor = Color(0x77000000)
+                        ambientColor = Color(0x44000000),
+                        spotColor = Color(0x55000000)
                     )
                     .clip(jarShape)
                     .background(

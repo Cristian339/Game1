@@ -44,12 +44,31 @@ class GameViewModel(
         viewModelScope.launch {
             val level = levelRepository.getLevel(levelNumber)
             val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
+            val basicDone = preferencesRepository.tutorialBasicDoneFlow.first()
+            val recipeDone = preferencesRepository.tutorialRecipeDoneFlow.first()
             _uiState.value = GameUiState(
                 levelNumber = levelNumber,
                 jars = initialJars,
                 customerOrder = level.customerOrder,
-                isDailyChallenge = level.isDailyChallenge
+                isDailyChallenge = level.isDailyChallenge,
+                isGateLevel = LevelRepository.isGateLevel(levelNumber) && level.customerOrder != null,
+                showBasicTutorial = levelNumber == 1 && !basicDone,
+                showRecipeTutorial = levelNumber == 4 && !recipeDone && level.customerOrder != null
             )
+        }
+    }
+
+    fun dismissTutorial() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            if (state.showBasicTutorial) {
+                preferencesRepository.setTutorialBasicDone()
+                _uiState.update { it.copy(showBasicTutorial = false) }
+            }
+            if (state.showRecipeTutorial) {
+                preferencesRepository.setTutorialRecipeDone()
+                _uiState.update { it.copy(showRecipeTutorial = false) }
+            }
         }
     }
 
@@ -150,7 +169,18 @@ class GameViewModel(
                     )
 
                     val newHistory = stateNow.history + listOf(stateNow.jars)
-                    val isCompleted = gameEngine.checkLevelCompleted(newJars, stateNow.customerOrder)
+                    val requireRecipe = stateNow.isGateLevel
+                    val isCompleted = gameEngine.checkLevelCompleted(
+                        newJars,
+                        stateNow.customerOrder,
+                        requireRecipe
+                    )
+                    val fulfilled = gameEngine.isOrderFulfilled(newJars, stateNow.customerOrder)
+                    val bonus = when {
+                        stateNow.isGateLevel && fulfilled -> 50
+                        !stateNow.isGateLevel && fulfilled && stateNow.customerOrder != null -> 15
+                        else -> 0
+                    }
 
                     // Fase 2: el líquido llega al destino y el relleno aparece
                     _uiState.update {
@@ -159,6 +189,8 @@ class GameViewModel(
                             movesCount = it.movesCount + 1,
                             history = newHistory,
                             isLevelCompleted = isCompleted,
+                            orderFulfilled = fulfilled,
+                            bonusLeaves = bonus,
                             hintMove = null
                         )
                     }
@@ -183,31 +215,67 @@ class GameViewModel(
         }
     }
 
+    init {
+        viewModelScope.launch {
+            preferencesRepository.soundEnabledFlow.collect { enabled ->
+                soundManager?.soundEnabled = enabled
+            }
+        }
+        viewModelScope.launch {
+            preferencesRepository.undoTokensFlow.collect { tokens ->
+                _uiState.update { it.copy(undoTokens = tokens) }
+            }
+        }
+    }
+
     fun undoMove() {
         val currentState = _uiState.value
         if (currentState.history.isEmpty() || currentState.isLevelCompleted) return
         if (currentState.animatingPour != null) return
 
-        soundManager?.playUndo()
-
-        val previousJars = currentState.history.last()
-        val newHistory = currentState.history.dropLast(1)
-
-        _uiState.update {
-            it.copy(
-                jars = previousJars,
-                history = newHistory,
-                selectedJarIndex = null,
-                hintMove = null
-            )
+        if (currentState.undoTokens <= 0) {
+            _uiState.update { it.copy(showBuyUndoDialog = true) }
+            return
         }
+
+        viewModelScope.launch {
+            val success = preferencesRepository.consumeUndoToken()
+            if (success) {
+                soundManager?.playUndo()
+                val previousJars = currentState.history.last()
+                val newHistory = currentState.history.dropLast(1)
+
+                _uiState.update {
+                    it.copy(
+                        jars = previousJars,
+                        history = newHistory,
+                        selectedJarIndex = null,
+                        hintMove = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun buyUndoTokens() {
+        viewModelScope.launch {
+            val success = preferencesRepository.buyUndoTokens(3, 15)
+            if (success) {
+                _uiState.update { it.copy(showBuyUndoDialog = false) }
+            }
+        }
+    }
+
+    fun dismissBuyUndoDialog() {
+        _uiState.update { it.copy(showBuyUndoDialog = false) }
     }
 
     fun requestHint() {
         val currentState = _uiState.value
         if (currentState.isLevelCompleted) return
 
-        val solution = solver.solve(currentState.jars)
+        val order = if (currentState.isGateLevel) currentState.customerOrder?.requiredHerbs else null
+        val solution = solver.solve(currentState.jars, order)
         if (!solution.isNullOrEmpty()) {
             soundManager?.playHint()
             _uiState.update { it.copy(hintMove = solution.first()) }
@@ -244,12 +312,20 @@ class GameViewModel(
                 preferencesRepository.addStamina(3)
             }
 
-            val currentUnlocked = preferencesRepository.unlockedHerbsFlow.first()
-            val nextLockedHerb = Herb.entries.firstOrNull { it.id !in currentUnlocked }
-            if (nextLockedHerb != null) {
-                preferencesRepository.unlockHerb(nextLockedHerb.id)
-                soundManager?.playUnlock()
-                _uiState.update { it.copy(newlyUnlockedHerb = nextLockedHerb) }
+            // Bonus de hojas por receta cumplida (opcional o de puerta)
+            if (state.bonusLeaves > 0) {
+                preferencesRepository.addGoldLeaves(state.bonusLeaves)
+            }
+
+            // Hierbas: solo se desbloquean en niveles puerta con receta cumplida
+            if (state.isGateLevel && state.orderFulfilled) {
+                val currentUnlocked = preferencesRepository.unlockedHerbsFlow.first()
+                val nextLockedHerb = Herb.entries.firstOrNull { it.id !in currentUnlocked }
+                if (nextLockedHerb != null) {
+                    preferencesRepository.unlockHerb(nextLockedHerb.id)
+                    soundManager?.playUnlock()
+                    _uiState.update { it.copy(newlyUnlockedHerb = nextLockedHerb) }
+                }
             }
 
             if (!state.isDailyChallenge) {

@@ -123,6 +123,55 @@ class GameEngineTest {
     }
 
     @Test
+    fun testGateLevelRequiresRecipeToComplete() {
+        val order = CustomerOrder(
+            id = "gate_4",
+            customerName = "Vendedora Rosa",
+            dialogue = "Té",
+            recipeName = "Infusión del Caminante",
+            requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.ROSEMARY, Herb.ROSEMARY)
+        )
+
+        // Pure sorting alone must NOT complete a gate level
+        val jar1 = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE))
+        val jar2 = Jar(id = 1, capacity = 4, stack = listOf(Herb.ROSEMARY, Herb.ROSEMARY, Herb.ROSEMARY, Herb.ROSEMARY))
+        val jar3 = Jar(id = 2, capacity = 4, stack = listOf(Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER))
+        val emptyJar = Jar(id = 3, capacity = 4, stack = emptyList())
+
+        assertFalse(
+            "Gate level must not complete by pure sorting only",
+            engine.checkLevelCompleted(listOf(jar1, jar2, jar3, emptyJar), order, requireRecipe = true)
+        )
+
+        // With the exact recipe jar + rest pure, it completes
+        val recipeJar = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.ROSEMARY, Herb.ROSEMARY))
+        val restChamomile = Jar(id = 1, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE))
+        val restRosemary = Jar(id = 2, capacity = 4, stack = listOf(Herb.ROSEMARY, Herb.ROSEMARY))
+        val restLavender = Jar(id = 3, capacity = 4, stack = listOf(Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER))
+
+        assertTrue(
+            engine.checkLevelCompleted(listOf(recipeJar, restChamomile, restRosemary, restLavender), order, requireRecipe = true)
+        )
+        assertTrue(engine.isOrderFulfilled(listOf(recipeJar, restChamomile, restRosemary, restLavender), order))
+    }
+
+    @Test
+    fun testOptionalRecipeNotRequiredWhenGateIsFalse() {
+        val order = CustomerOrder(
+            id = "order_6",
+            customerName = "Abuela Clara",
+            dialogue = "Té",
+            recipeName = "Infusión Dulce Calma",
+            requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.LAVENDER)
+        )
+        val jar1 = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE))
+        val jar2 = Jar(id = 1, capacity = 4, stack = listOf(Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER))
+        val empty = Jar(id = 2, capacity = 4, stack = emptyList())
+
+        assertTrue(engine.checkLevelCompleted(listOf(jar1, jar2, empty), order, requireRecipe = false))
+    }
+
+    @Test
     fun testFrozenTopUnfreezesWhenOtherJarCompletes() {
         val completed = Jar(id = 0, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.CHAMOMILE))
         val frozenJar = Jar(

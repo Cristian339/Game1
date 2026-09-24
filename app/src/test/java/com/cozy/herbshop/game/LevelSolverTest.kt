@@ -81,4 +81,45 @@ class LevelSolverTest {
         }
         assertTrue("Daily-difficulty level should be solvable", solver.isSolvable(jars))
     }
+
+    @Test
+    fun testGateLevelFourSolvableWithRecipe() {
+        // Predefined level 4 from levels.json
+        val jars = listOf(
+            Jar(id = 0, capacity = 4, stack = listOf(Herb.HIBISCUS, Herb.CHAMOMILE, Herb.HIBISCUS, Herb.ROSEMARY)),
+            Jar(id = 1, capacity = 4, stack = listOf(Herb.ROSEMARY, Herb.LAVENDER, Herb.ROSEMARY, Herb.CHAMOMILE)),
+            Jar(id = 2, capacity = 4, stack = listOf(Herb.LAVENDER, Herb.HIBISCUS, Herb.CHAMOMILE, Herb.LAVENDER)),
+            Jar(id = 3, capacity = 4, stack = listOf(Herb.CHAMOMILE, Herb.ROSEMARY, Herb.LAVENDER, Herb.HIBISCUS)),
+            Jar(id = 4, capacity = 4, stack = emptyList()),
+            Jar(id = 5, capacity = 4, stack = emptyList())
+        )
+
+        assertTrue(
+            "Level 4 must be solvable",
+            solver.isSolvable(jars)
+        )
+    }
+
+    @Test
+    fun testGeneratedGateLevelSolvableWithRecipe() {
+        val level = generator.generateSolvableLevel(
+            levelNumber = 9,
+            numHerbTypes = 6,
+            emptyJars = 2,
+            jarCapacity = 4,
+            random = Random(9)
+        )
+
+        val jars = level.jars.mapIndexed { index, herbIds ->
+            Jar(
+                id = index,
+                capacity = level.jarCapacity,
+                stack = herbIds.map { Herb.fromId(it.removePrefix("sealed:").removePrefix("frozen:").removePrefix("?")) }
+            )
+        }
+        assertTrue(
+            "Generated gate level 9 must be solvable",
+            solver.isSolvable(jars)
+        )
+    }
 }

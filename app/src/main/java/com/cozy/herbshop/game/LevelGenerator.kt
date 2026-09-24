@@ -14,7 +14,8 @@ class LevelGenerator(
         numHerbTypes: Int = 4,
         emptyJars: Int = 2,
         jarCapacity: Int = 4,
-        random: Random = Random.Default
+        random: Random = Random.Default,
+        requiredOrder: List<Herb>? = null
     ): GameLevel {
         val availableHerbs = Herb.entries.take(numHerbTypes)
         val attemptsLimit = 50
@@ -49,7 +50,7 @@ class LevelGenerator(
                 Jar(id = index, capacity = jarCapacity, stack = herbs)
             }
 
-            if (solver.isSolvable(initialJars)) {
+            if (solver.isSolvable(initialJars, requiredOrder)) {
                 val shouldAddMystery = levelNumber >= 3
                 val shouldAddSealed = levelNumber >= 4
                 var sealedAdded = false

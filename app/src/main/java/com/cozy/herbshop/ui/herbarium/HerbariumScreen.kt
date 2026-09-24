@@ -156,9 +156,20 @@ fun HerbariumScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Herbario de la Tienda",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                text = "Herbario",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "${unlockedHerbsSet.size}/8",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                softWrap = false
             )
         }
 
@@ -293,7 +304,7 @@ fun HerbariumScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = if (isUnlocked) herb.description else "Desbloquea completando niveles.",
+                                text = if (isUnlocked) herb.description else "Desbloquea en los niveles puerta con su receta.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isUnlocked) 0.85f else 0.75f)
                             )

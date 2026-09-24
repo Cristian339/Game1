@@ -25,7 +25,14 @@ data class GameUiState(
     val customerOrder: CustomerOrder? = null,
     val isDailyChallenge: Boolean = false,
     val isZenMode: Boolean = false,
-    val animatingPour: PourAnimation? = null
+    val isGateLevel: Boolean = false,
+    val orderFulfilled: Boolean = false,
+    val bonusLeaves: Int = 0,
+    val showBasicTutorial: Boolean = false,
+    val showRecipeTutorial: Boolean = false,
+    val animatingPour: PourAnimation? = null,
+    val undoTokens: Int = 3,
+    val showBuyUndoDialog: Boolean = false
 ) {
     val canUndo: Boolean get() = history.isNotEmpty()
 }
@@ -106,24 +113,47 @@ class GameEngine {
         return jars.map { it.revealTopLayer() }
     }
 
-    fun checkLevelCompleted(jars: List<Jar>, customerOrder: CustomerOrder? = null): Boolean {
+    fun checkLevelCompleted(
+        jars: List<Jar>,
+        customerOrder: CustomerOrder? = null,
+        requireRecipe: Boolean = false
+    ): Boolean {
+        val fulfilled = isOrderFulfilled(jars, customerOrder)
+
+        // En niveles puerta la receta es obligatoria para completar
+        if (requireRecipe) {
+            return fulfilled
+        }
+
         // 1. Victoria por ordenación completa básica
-        val basicSortingCompleted = jars.all { jar -> jar.isCompleted }
-        if (basicSortingCompleted) {
+        if (jars.all { jar -> jar.isCompleted }) {
             return true
         }
 
         // 2. Victoria por cumplir el pedido de receta del cliente
-        if (customerOrder != null) {
-            val orderJar = jars.find { jar ->
-                jar.layers.size == customerOrder.requiredHerbs.size &&
+        return fulfilled
+    }
+
+    fun isOrderFulfilled(jars: List<Jar>, customerOrder: CustomerOrder?): Boolean {
+        if (customerOrder == null) return false
+        val orderJar = jars.find { jar ->
+            jar.layers.size == customerOrder.requiredHerbs.size &&
                 jar.layers.map { it.herb } == customerOrder.requiredHerbs
-            }
-            if (orderJar != null) {
-                val remainingJars = jars.filter { it.id != orderJar.id }
-                return remainingJars.all { it.isCompleted }
-            }
+        } ?: return false
+        // Resto: vacío o puro (una sola hierba). Se admite frasco parcial puro
+        // porque la receta consume 2+2 de dos hierbas y sobran 2 unidades.
+        val remainingJars = jars.filter { it.id != orderJar.id }
+        return remainingJars.all { jar ->
+            jar.isEmpty || jar.layers.all { it.herb == jar.layers.first().herb && !it.isHidden }
         }
-        return false
+    }
+
+    /** Índice del frasco que encaja con la receta (para el check en UI), o null. */
+    fun findOrderJarIndex(jars: List<Jar>, customerOrder: CustomerOrder?): Int? {
+        if (customerOrder == null) return null
+        return jars.indexOfFirst { jar ->
+            jar.layers.size == customerOrder.requiredHerbs.size &&
+                jar.layers.map { it.herb } == customerOrder.requiredHerbs
+        }.takeIf { it >= 0 }
     }
 }

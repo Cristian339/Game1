@@ -93,6 +93,34 @@ AMBIENT
    License: CC0 1.0 (Public Domain)
    URL: https://bigsoundbank.com/rain-under-an-umbrella-s2679.html
 
+10. Forest ambience loop (amb_forest.ogg)
+   Source: BigSoundBank — "Forest" (#0100)
+   Author: Joseph Sardin
+   License: CC0 1.0 (Public Domain)
+   URL: https://bigsoundbank.com/forest-s0100.html
+
+11. Stream / brook loop (amb_stream.ogg)
+   Source: BigSoundBank — "Small Stream #4" (#1354)
+   Author: Joseph Sardin
+   License: CC0 1.0 (Public Domain)
+   URL: https://bigsoundbank.com/small-stream-4-s1354.html
+
+12. Fireplace loop (amb_fire.ogg)
+   Source: BigSoundBank — "Fireplace #1" (#0030)
+   Author: Joseph Sardin
+   License: CC0 1.0 (Public Domain)
+   URL: https://bigsoundbank.com/fireplace-1-s0030.html
+
+13. Night crickets loop (amb_night.ogg)
+   Source: BigSoundBank — "Field cricket" (#1020)
+   Author: Joseph Sardin
+   License: CC0 1.0 (Public Domain)
+   URL: https://bigsoundbank.com/field-cricket-s1020.html
+
+Note on items 10–13: each source was trimmed to 32 s, level-matched to
+amb_rain.ogg and given a 2 s crossfade so it loops seamlessly in-game.
+Editing does not change the CC0 terms of the original recordings.
+
 License summary: every asset above is CC0 1.0 / Public Domain.
 Commercial use in free-to-play apps with ads/IAP is allowed.
 No attribution required. Assets may not be redistributed standalone.

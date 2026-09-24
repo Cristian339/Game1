@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -60,9 +63,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.ui.components.CozyJarItem
+import com.cozy.herbshop.ui.components.TutorialOverlay
+import com.cozy.herbshop.ui.components.TutorialStep
 import com.cozy.herbshop.ui.components.cozyBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -73,6 +81,27 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 private const val POUR_ANGLE_DEG = 42f
+
+@Composable
+private fun OrderHerbRow(label: String, herbs: List<com.cozy.herbshop.data.model.Herb>, dotSize: Dp) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false
+        )
+        herbs.forEach { herb ->
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 2.dp)
+                    .size(dotSize)
+                    .background(color = herb.defaultColor, shape = CircleShape)
+            )
+        }
+    }
+}
 
 @Composable
 fun GameScreen(
@@ -145,20 +174,75 @@ fun GameScreen(
                 }
 
                 Text(
-                    text = if (uiState.isDailyChallenge) "📅 Desafío Diario" else if (uiState.isZenMode) "🧘 Modo Zen" else "Nivel ${uiState.levelNumber}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    text = if (uiState.isDailyChallenge) "📅 Diario" else if (uiState.isZenMode) "🧘 Zen" else "Nivel ${uiState.levelNumber}",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
 
                 Text(
-                    text = "Movs: ${uiState.movesCount}",
-                    style = MaterialTheme.typography.bodyLarge
+                    text = "🔄 ${uiState.movesCount}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            if (uiState.isDailyChallenge) {
+            if (uiState.isGateLevel && !uiState.isDailyChallenge) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "🌟 Puerta de Hierba",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "Obligatoria +50 🍃",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        uiState.customerOrder?.let { order ->
+                            Text(
+                                text = "Receta obligatoria: \"${order.recipeName}\"",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = order.dialogue,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontStyle = FontStyle.Italic,
+                                maxLines = 3
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OrderHerbRow(label = "Receta: ", herbs = order.requiredHerbs, dotSize = 16.dp)
+                        }
+                    }
+                }
+            } else if (uiState.isDailyChallenge) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -232,41 +316,30 @@ fun GameScreen(
                                 Text(
                                     text = "👤 ${order.customerName}",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
                                 Text(
-                                    text = order.recipeName,
+                                    text = "🍃 15 bonus",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "\"${order.dialogue}\"",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontStyle = FontStyle.Italic
+                                fontStyle = FontStyle.Italic,
+                                maxLines = 3
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Receta pedida: ",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                order.requiredHerbs.forEach { herb ->
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(horizontal = 2.dp)
-                                            .size(14.dp)
-                                            .background(
-                                                color = herb.defaultColor,
-                                                shape = CircleShape
-                                            )
-                                    )
-                                }
-                            }
+                            OrderHerbRow(label = "Receta (opcional): ", herbs = order.requiredHerbs, dotSize = 14.dp)
                         }
                     }
                 }
@@ -286,6 +359,14 @@ fun GameScreen(
             }
 
             val gridColumns = if (uiState.jars.size > 6) 4 else 3
+            val orderJarIndex = remember(uiState.jars, uiState.customerOrder) {
+                uiState.customerOrder?.let { order ->
+                    uiState.jars.indexOfFirst { jar ->
+                        jar.layers.size == order.requiredHerbs.size &&
+                            jar.layers.map { it.herb } == order.requiredHerbs
+                    }.takeIf { it >= 0 }
+                }
+            }
             Box(modifier = Modifier.weight(1f)) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridColumns),
@@ -304,19 +385,27 @@ fun GameScreen(
                             if (dstBounds.left >= srcBounds.left) POUR_ANGLE_DEG else -POUR_ANGLE_DEG
                         } else 0f
 
-                        CozyJarItem(
-                            jar = jar,
-                            isSelected = uiState.selectedJarIndex == index && uiState.animatingPour == null,
-                            isPourSource = isSource,
-                            isPourTarget = isTarget,
-                            pourAngle = angle,
-                            onClick = { viewModel.onJarClicked(index) },
-                            onPositioned = { rect -> jarRootBounds[index] = rect },
-                            modifier = Modifier
-                                .then(
-                                    if (isTarget) Modifier.background(Color.Transparent) else Modifier
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            CozyJarItem(
+                                jar = jar,
+                                isSelected = uiState.selectedJarIndex == index && uiState.animatingPour == null,
+                                isPourSource = isSource,
+                                isPourTarget = isTarget,
+                                pourAngle = angle,
+                                onClick = { viewModel.onJarClicked(index) },
+                                onPositioned = { rect -> jarRootBounds[index] = rect },
+                                modifier = Modifier
+                                    .then(
+                                        if (isTarget) Modifier.background(Color.Transparent) else Modifier
+                                    )
+                            )
+                            if (orderJarIndex == index) {
+                                Text(
+                                    text = "✅",
+                                    modifier = Modifier.padding(top = 18.dp, end = 4.dp)
                                 )
-                        )
+                            }
+                        }
                     }
                 }
 
@@ -546,16 +635,22 @@ fun GameScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(top = 8.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 OutlinedButton(
                     onClick = { viewModel.undoMove() },
-                    enabled = uiState.canUndo && uiState.animatingPour == null
+                    enabled = uiState.animatingPour == null,
+                    modifier = Modifier.weight(1.1f).height(46.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Deshacer")
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text("Deshacer (${uiState.undoTokens})", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
                 }
 
                 OutlinedButton(
@@ -563,11 +658,24 @@ fun GameScreen(
                         AudioHub.sound.playUiClick()
                         onWatchAdForHint()
                     },
-                    enabled = uiState.animatingPour == null
+                    enabled = uiState.animatingPour == null,
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Lightbulb, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Pista (Ad)")
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("Pista", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        "Ad",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
                 }
 
                 OutlinedButton(
@@ -575,13 +683,94 @@ fun GameScreen(
                         AudioHub.sound.playUiClick()
                         onWatchAdForExtraJar()
                     },
-                    enabled = uiState.animatingPour == null
+                    enabled = uiState.animatingPour == null,
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("+Frasco (Ad)")
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("+Frasco", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        "Ad",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
                 }
             }
+        }
+
+        if (uiState.showBasicTutorial) {
+            TutorialOverlay(
+                steps = listOf(
+                    TutorialStep(
+                        emoji = "👆",
+                        title = "Toca un frasco",
+                        body = "Selecciona el frasco que quieras mover. Se iluminará al elegirlo."
+                    ),
+                    TutorialStep(
+                        emoji = "💧",
+                        title = "Verte en otro frasco",
+                        body = "Toca otro frasco: si la hierba de arriba coincide, el contenido se vierte. Si no, no pasa nada."
+                    ),
+                    TutorialStep(
+                        emoji = "🫙",
+                        title = "Ordena las hierbas",
+                        body = "Rellena un frasco entero con una sola hierba para completarlo. Ordena todos y ¡nivel superado!"
+                    )
+                ),
+                onSkip = { viewModel.dismissTutorial() },
+                onFinished = { viewModel.dismissTutorial() }
+            )
+        } else if (uiState.showRecipeTutorial) {
+            TutorialOverlay(
+                steps = listOf(
+                    TutorialStep(
+                        emoji = "📜",
+                        title = "Receta obligatoria",
+                        body = "Este es una puerta de hierba: solo superas el nivel preparando la receta del cliente."
+                    ),
+                    TutorialStep(
+                        emoji = "🌿",
+                        title = "Arma el frasco mágico",
+                        body = "En un frasco, coloca las hierbas en el orden exacto de la receta (de abajo hacia arriba). Verás ✅ cuando encaje."
+                    ),
+                    TutorialStep(
+                        emoji = "🎁",
+                        title = "Gana la hierba nueva",
+                        body = "Al completar la receta recibirás +50 🍃 y una hierba nueva para tu herbario."
+                    )
+                ),
+                onSkip = { viewModel.dismissTutorial() },
+                onFinished = { viewModel.dismissTutorial() }
+            )
+        }
+
+        if (uiState.showBuyUndoDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissBuyUndoDialog() },
+                title = {
+                    Text("↩️ Comprar Deshacer", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Text("Te has quedado sin fichas de Deshacer. ¿Quieres comprar 3 fichas por 15 🍃 Hojas de Oro?")
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.buyUndoTokens() }) {
+                        Text("Comprar (15 🍃)")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { viewModel.dismissBuyUndoDialog() }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
         }
     }
 }

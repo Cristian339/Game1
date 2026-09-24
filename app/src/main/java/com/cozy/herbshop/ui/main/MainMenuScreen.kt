@@ -54,6 +54,7 @@ fun MainMenuScreen(
     onDailyChallengeClicked: () -> Unit,
     onZenModeClicked: () -> Unit,
     onJournalClicked: () -> Unit,
+    onLevelMapClicked: () -> Unit,
     onHerbariumClicked: () -> Unit,
     onShopClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
@@ -251,9 +252,11 @@ fun MainMenuScreen(
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 ) {
                     Text(
-                        "🧘 Modo Zen",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "🧘 Zen",
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -261,14 +264,54 @@ fun MainMenuScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            MenuNavigationButton(
-                text = "Herbario (${uiState.unlockedHerbsCount} descubiertas)",
-                icon = Icons.Default.List,
-                onClick = {
-                    AudioHub.sound.playUiClick()
-                    onHerbariumClicked()
+            Row(
+                modifier = Modifier.fillMaxWidth(0.88f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        AudioHub.sound.playUiClick()
+                        onLevelMapClicked()
+                    },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        "🗺️ Niveles",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-            )
+
+                OutlinedButton(
+                    onClick = {
+                        AudioHub.sound.playUiClick()
+                        onHerbariumClicked()
+                    },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        "Herbario (${uiState.unlockedHerbsCount}/8)",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -321,8 +364,11 @@ private fun MenuNavigationButton(
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
