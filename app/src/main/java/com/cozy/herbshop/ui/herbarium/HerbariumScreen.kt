@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import com.cozy.herbshop.ui.collection.CollectionShowcaseScreen
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -41,6 +43,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +64,8 @@ import androidx.compose.ui.geometry.Offset
 @Composable
 fun HerbariumScreen(
     repository: UserPreferencesRepository,
-    onBackClicked: () -> Unit
+    onBackClicked: () -> Unit,
+    onShopClicked: () -> Unit = {}
 ) {
     val unlockedHerbsSet by repository.unlockedHerbsFlow.collectAsState(initial = emptySet())
     var selectedHerb by remember { mutableStateOf<Herb?>(null) }
@@ -104,38 +109,7 @@ fun HerbariumScreen(
     }
 
     selectedHerb?.let { herb ->
-        AlertDialog(
-            onDismissRequest = { selectedHerb = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = herb.symbol, fontSize = 28.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(text = herb.displayName, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = herb.scientificName,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            },
-            text = {
-                Column {
-                    Text(text = herb.description, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "🌸 Aroma: ${herb.aromaProfile}", style = MaterialTheme.typography.bodySmall)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "🌍 Origen: ${herb.origin}", style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            confirmButton = {
-                Button(onClick = { selectedHerb = null }) {
-                    Text("Cerrar")
-                }
-            }
-        )
+        HerbDetailDialog(herb = herb, onDismiss = { selectedHerb = null })
     }
 
     Column(
@@ -376,4 +350,44 @@ fun HerbariumScreen(
             }
         }
     }
+}
+
+/** Ficha de una hierba, compartida por el Herbario y la vitrina de coleccion. */
+@Composable
+fun HerbDetailDialog(
+    herb: com.cozy.herbshop.data.model.Herb,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = herb.symbol, fontSize = 28.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(text = herb.displayName, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = herb.scientificName,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        },
+        text = {
+            Column {
+                Text(text = herb.description, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = "🌸 Aroma: ${herb.aromaProfile}", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "🌍 Origen: ${herb.origin}", style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        }
+    )
 }
