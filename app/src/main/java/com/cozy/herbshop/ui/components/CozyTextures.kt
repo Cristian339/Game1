@@ -218,12 +218,274 @@ fun Modifier.woodPlaqueBackground(): Modifier {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Decoraciones compradas en la tienda ("Decoración de la Herboristería").
+// Se dibujan en el menú principal y en la vista previa de la propia tienda.
+// Todo procedural, sin assets externos.
+// ---------------------------------------------------------------------------
+
+private fun DrawScope.drawShopMiniJar(cx: Float, baseY: Float, jarH: Float, content: Color) {
+    val jw = jarH * 0.62f
+    val top = baseY - jarH
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.40f),
+        topLeft = Offset(cx - jw / 2f, top),
+        size = Size(jw, jarH),
+        cornerRadius = CornerRadius(jw * 0.22f, jw * 0.22f)
+    )
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            listOf(content.cozyLighten(0.25f), content),
+            startY = top + jarH * 0.34f,
+            endY = baseY
+        ),
+        topLeft = Offset(cx - jw / 2f + 3f, top + jarH * 0.36f),
+        size = Size(jw - 6f, jarH * 0.64f - 3f),
+        cornerRadius = CornerRadius(jw * 0.16f, jw * 0.16f)
+    )
+    drawRoundRect(
+        color = Color(0xFF6D4C41),
+        topLeft = Offset(cx - jw * 0.30f, top - jarH * 0.14f),
+        size = Size(jw * 0.60f, jarH * 0.16f),
+        cornerRadius = CornerRadius(4f, 4f)
+    )
+    drawLine(
+        color = Color.White.copy(alpha = 0.55f),
+        start = Offset(cx - jw / 2f + 4f, top + jarH * 0.14f),
+        end = Offset(cx - jw / 2f + 4f, baseY - jarH * 0.10f),
+        strokeWidth = 2.5f
+    )
+}
+
+/** Estufa de leña con puerta encendida y resplandor en el suelo. */
+private fun DrawScope.drawShopStove(cx: Float, baseY: Float, sizePx: Float, dark: Boolean) {
+    val sw = sizePx * 0.94f
+    val sh = sizePx * 0.88f
+    val bodyTop = baseY - sh
+    val iron = if (dark) Color(0xFF2B2724) else Color(0xFF4A4441)
+    val ironLight = if (dark) Color(0xFF3A3532) else Color(0xFF5E5652)
+    val ironDark = if (dark) Color(0xFF171412) else Color(0xFF332E2B)
+
+    drawOval(
+        color = Color.Black.copy(alpha = 0.22f),
+        topLeft = Offset(cx - sw * 0.62f, baseY - sh * 0.05f),
+        size = Size(sw * 1.24f, sh * 0.15f)
+    )
+
+    listOf(-1f, 1f).forEach { s ->
+        drawRoundRect(
+            color = ironDark,
+            topLeft = Offset(cx + s * sw * 0.34f - sw * 0.05f, baseY - sh * 0.13f),
+            size = Size(sw * 0.10f, sh * 0.13f),
+            cornerRadius = CornerRadius(3f, 3f)
+        )
+    }
+
+    drawRoundRect(
+        brush = Brush.horizontalGradient(listOf(ironDark, ironLight, iron)),
+        topLeft = Offset(cx - sw / 2f, bodyTop + sh * 0.13f),
+        size = Size(sw, sh * 0.74f),
+        cornerRadius = CornerRadius(sw * 0.12f, sw * 0.12f)
+    )
+    drawRoundRect(
+        color = ironLight,
+        topLeft = Offset(cx - sw * 0.56f, bodyTop + sh * 0.06f),
+        size = Size(sw * 1.12f, sh * 0.09f),
+        cornerRadius = CornerRadius(sw * 0.05f, sw * 0.05f)
+    )
+
+    val doorW = sw * 0.56f
+    val doorH = sh * 0.34f
+    val doorX = cx - doorW / 2f
+    val doorY = bodyTop + sh * 0.32f
+    drawSoftGlow(
+        center = Offset(cx, doorY + doorH / 2f),
+        radius = sw * 1.15f,
+        color = Color(0xFFFF9800).copy(alpha = if (dark) 0.42f else 0.28f)
+    )
+    drawRoundRect(
+        color = ironDark,
+        topLeft = Offset(doorX - sw * 0.05f, doorY - sh * 0.04f),
+        size = Size(doorW + sw * 0.10f, doorH + sh * 0.08f),
+        cornerRadius = CornerRadius(sw * 0.08f, sw * 0.08f)
+    )
+    drawRoundRect(
+        brush = Brush.verticalGradient(listOf(Color(0xFFFFE082), Color(0xFFFF8A3D), Color(0xFFF4511E))),
+        topLeft = Offset(doorX, doorY),
+        size = Size(doorW, doorH),
+        cornerRadius = CornerRadius(doorW * 0.18f, doorW * 0.18f)
+    )
+    repeat(3) { i ->
+        val lx = doorX + doorW * (0.24f + i * 0.26f)
+        drawLine(
+            color = Color(0xFF4E342E).copy(alpha = 0.85f),
+            start = Offset(lx, doorY + doorH * 0.78f),
+            end = Offset(lx + doorW * 0.12f, doorY + doorH * 0.32f),
+            strokeWidth = sw * 0.055f
+        )
+    }
+    drawSoftGlow(
+        center = Offset(cx, doorY + doorH * 0.7f),
+        radius = doorW * 0.55f,
+        color = Color(0xFFFFD54F).copy(alpha = 0.55f)
+    )
+    drawCircle(color = ironLight, radius = sw * 0.045f, center = Offset(doorX + doorW + sw * 0.015f, doorY + doorH * 0.5f))
+
+    // Tetera sobre la placa
+    val kw = sw * 0.34f
+    val kh = sh * 0.16f
+    val kx = cx + sw * 0.16f
+    val ky = bodyTop + sh * 0.06f
+    drawRoundRect(
+        color = if (dark) Color(0xFF6D4C41) else Color(0xFF8D6E63),
+        topLeft = Offset(kx - kw / 2f, ky - kh),
+        size = Size(kw, kh),
+        cornerRadius = CornerRadius(kw * 0.30f, kw * 0.30f)
+    )
+    drawLine(
+        color = if (dark) Color(0xFF6D4C41) else Color(0xFF8D6E63),
+        start = Offset(kx + kw * 0.45f, ky - kh * 0.8f),
+        end = Offset(kx + kw * 0.85f, ky - kh * 1.15f),
+        strokeWidth = sh * 0.02f
+    )
+    drawArc(
+        color = if (dark) Color(0xFF6D4C41) else Color(0xFF8D6E63),
+        startAngle = 180f,
+        sweepAngle = 180f,
+        useCenter = false,
+        topLeft = Offset(kx - kw * 0.3f, ky - kh * 1.5f),
+        size = Size(kw * 0.6f, kh * 0.7f),
+        style = Stroke(width = sh * 0.018f)
+    )
+}
+
+/** Estante de pie con tres repisas y frascos. */
+private fun DrawScope.drawShopShelfUnit(cx: Float, baseY: Float, sizePx: Float, dark: Boolean) {
+    val sw = sizePx * 1.02f
+    val sh = sizePx * 0.98f
+    val top = baseY - sh
+    val wood = if (dark) Color(0xFF5A4238) else Color(0xFF8D6E63)
+    val woodLight = if (dark) Color(0xFF6D4C41) else Color(0xFFA17B57)
+    val woodDark = if (dark) Color(0xFF3E2C25) else Color(0xFF6D4C41)
+    val jarColors = listOf(
+        Color(0xFFFBC02D), Color(0xFFAB47BC), Color(0xFF66BB6A),
+        Color(0xFFE91E63), Color(0xFF8BC34A), Color(0xFFFF9800)
+    )
+
+    drawOval(
+        color = Color.Black.copy(alpha = 0.20f),
+        topLeft = Offset(cx - sw * 0.60f, baseY - sh * 0.04f),
+        size = Size(sw * 1.20f, sh * 0.13f)
+    )
+
+    drawRect(
+        color = woodDark.copy(alpha = 0.55f),
+        topLeft = Offset(cx - sw * 0.46f, top + sh * 0.03f),
+        size = Size(sw * 0.92f, sh * 0.94f)
+    )
+
+    listOf(-1f, 1f).forEach { s ->
+        drawRoundRect(
+            brush = Brush.horizontalGradient(listOf(woodLight, wood, woodDark)),
+            topLeft = Offset(cx + s * sw * 0.50f - sw * 0.045f, top),
+            size = Size(sw * 0.09f, sh),
+            cornerRadius = CornerRadius(4f, 4f)
+        )
+    }
+
+    repeat(3) { i ->
+        val sy = top + sh * (0.24f + i * 0.28f)
+        drawRect(
+            brush = Brush.verticalGradient(listOf(woodLight, wood)),
+            topLeft = Offset(cx - sw * 0.50f, sy),
+            size = Size(sw, sh * 0.05f)
+        )
+        drawRect(
+            color = woodDark.copy(alpha = 0.55f),
+            topLeft = Offset(cx - sw * 0.50f, sy + sh * 0.05f - 2f),
+            size = Size(sw, 2f)
+        )
+        val jarCount = if (i == 1) 3 else 2
+        for (j in 0 until jarCount) {
+            val t = if (jarCount == 1) 0.5f else j / (jarCount - 1f)
+            drawShopMiniJar(
+                cx = cx - sw * 0.30f + t * sw * 0.60f,
+                baseY = sy,
+                jarH = sh * 0.17f,
+                content = jarColors[(i * 2 + j) % jarColors.size]
+            )
+        }
+    }
+
+    drawRoundRect(
+        color = woodDark,
+        topLeft = Offset(cx - sw * 0.50f, baseY - sh * 0.045f),
+        size = Size(sw, sh * 0.045f),
+        cornerRadius = CornerRadius(3f, 3f)
+    )
+}
+
+/**
+ * Dibuja las decoraciones desbloqueadas dentro de la banda de suelo indicada.
+ * [left]/[right] = ancho disponible, [top]/[bottom] = banda de suelo.
+ */
+internal fun DrawScope.drawShopFloorDecorations(
+    decorations: Set<String>,
+    left: Float,
+    right: Float,
+    top: Float,
+    bottom: Float,
+    dark: Boolean
+) {
+    val bandW = right - left
+    val bandH = bottom - top
+    if (bandW <= 0f || bandH <= 0f) return
+    val baseY = bottom - bandH * 0.12f
+
+    if ("estufa_calida" in decorations) {
+        drawShopStove(
+            cx = left + bandW * 0.17f,
+            baseY = baseY,
+            sizePx = bandH * 0.78f,
+            dark = dark
+        )
+    }
+
+    if ("plantas_cozy" in decorations) {
+        val potColor = if (dark) Color(0xFF8A5A44) else Color(0xFFD08A63)
+        val leaves = listOf(
+            Color(0xFF7CB342), Color(0xFF9CCC65), Color(0xFF66BB6A),
+            Color(0xFFAED581), Color(0xFF8BC34A), Color(0xFF7CB342)
+        )
+        listOf(0.39f, 0.61f).forEach { t ->
+            drawPottedPlant(
+                baseX = left + bandW * t,
+                baseY = baseY,
+                sizePx = bandH * 0.56f,
+                pot = potColor,
+                leaves = leaves
+            )
+        }
+    }
+
+    if ("estante_roble" in decorations) {
+        drawShopShelfUnit(
+            cx = left + bandW * 0.84f,
+            baseY = baseY,
+            sizePx = bandH * 0.86f,
+            dark = dark
+        )
+    }
+}
+
 /**
  * Escenario procedural del menú: pared cozy, guirnalda de hierbas colgadas,
  * estante con frascos y suelo de tablas de madera.
+ *
+ * @param decorations ids de decoraciones desbloqueadas (de la tienda).
  */
 @Composable
-fun Modifier.shopSceneBackground(): Modifier {
+fun Modifier.shopSceneBackground(decorations: Set<String> = emptySet()): Modifier {
     val dark = isSystemInDarkTheme()
     val wallTop = if (dark) Color(0xFF232A26) else Color(0xFFEFE6D4)
     val wallBottom = if (dark) Color(0xFF1A1F1C) else Color(0xFFE2D3B8)
@@ -328,6 +590,17 @@ fun Modifier.shopSceneBackground(): Modifier {
                     )
                 }
 
+                if ("luces_hadas" in decorations) {
+                    drawStringLights(
+                        yBase = h * 0.19f,
+                        sag = h * 0.035f,
+                        count = 9,
+                        wire = if (dark) Color(0xFF3E2723) else Color(0xFF5D4037),
+                        glow = if (dark) Color(0xFFFFE082).copy(alpha = 0.35f) else Color(0xFFFFE082).copy(alpha = 0.30f),
+                        bulb = if (dark) Color(0xFFFFF3C4) else Color(0xFFFFE082)
+                    )
+                }
+
                 val shelfH = h * 0.022f
                 drawRect(
                     brush = Brush.verticalGradient(listOf(woodLight, woodDark)),
@@ -425,9 +698,101 @@ fun Modifier.shopSceneBackground(): Modifier {
                     size = Size(w, h * 0.07f)
                 )
 
+                if (decorations.isNotEmpty()) {
+                    drawShopFloorDecorations(
+                        decorations = decorations,
+                        left = 0f,
+                        right = w,
+                        top = floorTop + h * 0.01f,
+                        bottom = h * 0.965f,
+                        dark = dark
+                    )
+                }
+
                 drawRect(brush = vignette)
             }
         }
+}
+
+/**
+ * Mini-escenario para previsualizar en la Tienda las decoraciones desbloqueadas
+ * (mismo dibujo que el menú, en versión compacta).
+ */
+@Composable
+fun Modifier.shopDecorationsPreview(decorations: Set<String>): Modifier {
+    val dark = isSystemInDarkTheme()
+    val wallTop = if (dark) Color(0xFF232A26) else Color(0xFFEFE6D4)
+    val wallBottom = if (dark) Color(0xFF1A1F1C) else Color(0xFFE2D3B8)
+    val stripe = if (dark) Color.White.copy(alpha = 0.025f) else Color(0x14000000)
+    val floorA = if (dark) Color(0xFF3A2E26) else Color(0xFFB08968)
+    val floorB = if (dark) Color(0xFF2E241E) else Color(0xFF9C7550)
+    val floorLine = floorB.cozyDarken(0.30f)
+
+    return this.drawWithCache {
+        val w = size.width
+        val h = size.height
+        val floorTop = h * 0.48f
+        val stripeW = w / 7f
+
+        onDrawBehind {
+            drawRect(
+                brush = Brush.verticalGradient(listOf(wallTop, wallBottom), startY = 0f, endY = floorTop),
+                topLeft = Offset(0f, 0f),
+                size = Size(w, floorTop)
+            )
+
+            var sx = 0f
+            var idx = 0
+            while (sx < w) {
+                if (idx % 2 == 0) {
+                    drawRect(color = stripe, topLeft = Offset(sx, 0f), size = Size(stripeW, floorTop))
+                }
+                sx += stripeW
+                idx++
+            }
+
+            if ("luces_hadas" in decorations) {
+                drawStringLights(
+                    yBase = h * 0.14f,
+                    sag = h * 0.06f,
+                    count = 7,
+                    wire = if (dark) Color(0xFF3E2723) else Color(0xFF5D4037),
+                    glow = if (dark) Color(0xFFFFE082).copy(alpha = 0.35f) else Color(0xFFFFE082).copy(alpha = 0.30f),
+                    bulb = if (dark) Color(0xFFFFF3C4) else Color(0xFFFFE082)
+                )
+            }
+
+            val plankH = (h - floorTop) / 3f
+            for (i in 0 until 3) {
+                val py = floorTop + i * plankH
+                drawRect(color = if (i % 2 == 0) floorA else floorB, topLeft = Offset(0f, py), size = Size(w, plankH))
+                drawLine(
+                    color = floorLine.copy(alpha = 0.5f),
+                    start = Offset(0f, py),
+                    end = Offset(w, py),
+                    strokeWidth = 2f
+                )
+            }
+            drawRect(
+                brush = Brush.verticalGradient(
+                    listOf(Color.Black.copy(alpha = 0.18f), Color.Transparent),
+                    startY = floorTop - h * 0.05f,
+                    endY = floorTop + h * 0.04f
+                ),
+                topLeft = Offset(0f, floorTop - h * 0.05f),
+                size = Size(w, h * 0.09f)
+            )
+
+            drawShopFloorDecorations(
+                decorations = decorations,
+                left = 0f,
+                right = w,
+                top = floorTop + h * 0.02f,
+                bottom = h * 0.97f,
+                dark = dark
+            )
+        }
+    }
 }
 
 /** Brillo especular animado opcional para gotas/partículas. */
@@ -442,3 +807,4 @@ fun DrawScope.drawSoftGlow(center: Offset, radius: Float, color: Color) {
 
 internal fun DrawScope.wobbleOffset(phase: Float, amplitude: Float): Offset =
     Offset(x = sin(phase * Math.PI * 2.0).toFloat() * amplitude, y = cos(phase * Math.PI * 2.0).toFloat() * amplitude)
+
