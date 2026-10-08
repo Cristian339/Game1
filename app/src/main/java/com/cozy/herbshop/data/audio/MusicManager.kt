@@ -7,11 +7,25 @@ import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
 import com.cozy.herbshop.R
+import com.cozy.herbshop.ui.components.GameScene
 
 enum class MusicTrack(val resId: Int) {
     MENU(R.raw.music_menu),
-    GAME(R.raw.music_game),
-    ZEN(R.raw.music_zen)
+    MORNING(R.raw.music_morning),
+    NIGHT(R.raw.music_night),
+    FOREST(R.raw.music_forest),
+    AUTUMN(R.raw.music_autumn),
+    ZEN(R.raw.music_zen);
+
+    companion object {
+        /** Pista de fondo para el escenario de una partida (null en modo Zen). */
+        fun forScene(scene: GameScene?): MusicTrack = when (scene) {
+            GameScene.NIGHT -> NIGHT
+            GameScene.FOREST -> FOREST
+            GameScene.AUTUMN -> AUTUMN
+            else -> MORNING
+        }
+    }
 }
 
 class MusicManager(private val context: Context) {
