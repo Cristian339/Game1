@@ -33,7 +33,10 @@ class SoundManager(context: Context) {
         "achievement" to com.cozy.herbshop.R.raw.sfx_achievement,
         "purchase" to com.cozy.herbshop.R.raw.sfx_purchase,
         "unlock" to com.cozy.herbshop.R.raw.sfx_unlock,
-        "no_stamina" to com.cozy.herbshop.R.raw.sfx_no_stamina
+        "no_stamina" to com.cozy.herbshop.R.raw.sfx_no_stamina,
+        // Stings musicales (one-shot) para los momentos de celebración
+        "sting_recipe" to com.cozy.herbshop.R.raw.sting_recipe,
+        "sting_level_complete" to com.cozy.herbshop.R.raw.sting_level_complete
     )
 
     init {
@@ -61,6 +64,15 @@ class SoundManager(context: Context) {
     fun playJarClick() = play("jar_click")
     fun playJarSelect() = play("jar_select")
     fun playPourSound(volume: Float = 0.9f, rate: Float = 1f) = play("pour", volume, rate)
+
+/**
+ * Vertido grande (3 o mas unidades): mismo sonido base pero con tono mas grave y
+ * mas cuerpo, para que se oiga el chorro lleno y no gotas sueltas.
+ */
+fun playPourBig(volume: Float = 0.95f, rate: Float = 0.62f) = play("pour", volume, rate)
+
+/** Timbre cristalino del pack ASMR Cristal Pro al seleccionar frasco. */
+fun playCrystalChime(volume: Float = 0.5f) = play("jar_select", volume, 1.85f)
     fun playLevelCompleteSound() = play("level_complete", 0.95f)
     fun playInvalidPour() = play("invalid", 0.7f)
     fun playUndo() = play("undo")
@@ -81,6 +93,12 @@ class SoundManager(context: Context) {
     fun playPurchase() = play("purchase", 0.85f)
     fun playUnlock() = play("unlock", 0.85f)
     fun playNoStamina() = play("no_stamina", 0.75f)
+
+    /** Fanfarria musical al servir la receta en la tetera. */
+    fun playStingRecipe() = play("sting_recipe", 1f)
+
+    /** Fanfarria musical al superar el nivel. */
+    fun playStingLevelComplete() = play("sting_level_complete", 1f)
 
     fun pause() {
         try { soundPool.autoPause() } catch (_: Exception) {}

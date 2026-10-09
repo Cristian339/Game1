@@ -45,6 +45,12 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.remember
 import com.cozy.herbshop.data.model.Achievement
+import com.cozy.herbshop.ui.components.GeneratedArt
+import com.cozy.herbshop.ui.components.rememberResources
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.size
 
 @Composable
 fun SettingsScreen(
@@ -57,6 +63,7 @@ fun SettingsScreen(
     val ambientSound by repository.ambientSoundFlow.collectAsState(initial = AmbientManager.DEFAULT_SOUND)
     val colorblindMode by repository.colorblindModeFlow.collectAsState(initial = true)
     val unlockedAchievements by repository.unlockedAchievementsFlow.collectAsState(initial = emptySet())
+    val resources = rememberResources()
 
     val scope = rememberCoroutineScope()
 
@@ -302,7 +309,18 @@ fun SettingsScreen(
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = ach.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        val achArt = remember(ach.id) { GeneratedArt.resId(resources, GeneratedArt.achievementArt(ach.id)) }
+                        if (achArt != 0) {
+                            Image(
+                                painter = painterResource(achArt),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                contentScale = ContentScale.Fit,
+                                alpha = if (isUnlocked) 1f else 0.35f
+                            )
+                        } else {
+                            Text(text = ach.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -364,7 +382,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Gráficos: arte procedural original del juego + assets CC0 (ver CREDITS.txt).",
+                    text = "Gráficos: ilustraciones generadas con IA desde prompts propios + arte procedural original del juego + assets CC0 (ver CREDITS.txt y PROMPTS.md).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 )
