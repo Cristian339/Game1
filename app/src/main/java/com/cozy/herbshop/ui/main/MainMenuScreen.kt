@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,7 +45,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cozy.herbshop.data.audio.AudioHub
-import com.cozy.herbshop.ui.components.shopSceneBackground
+import com.cozy.herbshop.ui.components.ShopDecorationLayer
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.cozy.herbshop.R
 import com.cozy.herbshop.ui.components.woodPlaqueBackground
 
 @Composable
@@ -58,9 +63,11 @@ fun MainMenuScreen(
     onHerbariumClicked: () -> Unit,
     onShopClicked: () -> Unit,
     onSettingsClicked: () -> Unit,
+    onCollectionClicked: () -> Unit,
     onWatchAdForStamina: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val decorations by viewModel.decorations.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
@@ -76,9 +83,19 @@ fun MainMenuScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .shopSceneBackground()
-            .padding(24.dp)
     ) {
+        // Fondo ilustrado del mostrador con las decoraciones compradas encima.
+        Image(
+            painter = painterResource(R.drawable.bg_loading),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        ShopDecorationLayer(
+            unlocked = decorations,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -334,6 +351,18 @@ fun MainMenuScreen(
                     onSettingsClicked()
                 }
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            MenuNavigationButton(
+                text = "Mi Colección",
+                icon = Icons.Default.CollectionsBookmark,
+                onClick = {
+                    AudioHub.sound.playUiClick()
+                    onCollectionClicked()
+                }
+            )
+        }
         }
     }
 }

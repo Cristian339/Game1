@@ -3,6 +3,7 @@ package com.cozy.herbshop.ui.shop
 import android.app.Activity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,24 +28,33 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.billing.BillingManager
 import com.cozy.herbshop.ui.components.cozyBackground
+import com.cozy.herbshop.ui.components.shopDecorationsPreview
+import com.cozy.herbshop.ui.components.GeneratedArt
+import com.cozy.herbshop.ui.components.rememberResources
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.runtime.rememberCoroutineScope
 import com.cozy.herbshop.data.model.DecorationItem
+import com.cozy.herbshop.data.model.HelpItem
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.launch
 
@@ -57,12 +68,18 @@ fun ShopScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
+    val resources = rememberResources()
 
     val isAdsRemoved by billingManager.isAdsRemoved.collectAsState()
     val isThemePackUnlocked by billingManager.isThemePackUnlocked.collectAsState()
     val goldLeaves by repository.goldLeavesFlow.collectAsState(initial = 50)
     val unlockedDecorations by repository.unlockedDecorationsFlow.collectAsState(initial = emptySet())
     val unlockedAsmrPacks by repository.unlockedAsmrPacksFlow.collectAsState(initial = setOf("asmr_cristal"))
+    val helpStocks = HelpItem.entries.associateWith { help ->
+        repository.helpStockFlow(help.id).collectAsState(
+            initial = UserPreferencesRepository.STARTING_HELP_STOCK[help.id] ?: 0
+        ).value
+    }
 
     val decorations = remember {
         listOf(
@@ -75,9 +92,12 @@ fun ShopScreen(
 
     val asmrPacks = remember {
         listOf(
-            DecorationItem("asmr_cristal", "ASMR Cristal Pro", "Audio", 0, "🔔", "Efectos cristalinos de resonancia suave al seleccionar frascos."),
+            DecorationItem("asmr_cristal", "ASMR Cristal Pro", "Audio", 0, "🔔", "Sin ambiente: añade un timbre cristalino cada vez que seleccionas un frasco o sirves la tetera."),
             DecorationItem("asmr_lluvia", "Lluvia Relajante", "Audio", 40, "🌧️", "Sonido ambiental de lluvia cayendo en la ventana."),
-            DecorationItem("asmr_chimenea", "Chimenea de Leña", "Audio", 40, "🔥", "Cálido chisporroteo de leña para tus tardes de juego.")
+            DecorationItem("asmr_chimenea", "Chimenea de Leña", "Audio", 40, "🔥", "Cálido chisporroteo de leña para tus tardes de juego."),
+            DecorationItem("asmr_arroyo", "Arroyo Tranquilo", "Audio", 55, "💧", "Agua corriendo entre piedras, suave y constante."),
+            DecorationItem("asmr_bosque", "Bosque en Calma", "Audio", 55, "🌲", "Bosque con pájaros y hojas, como escuchar la montaña."),
+            DecorationItem("asmr_noche", "Noche Estrellada", "Audio", 70, "🌙", "Grillos y cigarras en una noche cálida de verano.")
         )
     }
 
@@ -160,6 +180,16 @@ fun ShopScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .shopDecorationsPreview(unlockedDecorations)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 decorations.forEach { item ->
                     val isPurchased = item.id in unlockedDecorations
 
@@ -169,7 +199,17 @@ fun ShopScreen(
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = item.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        val decoArt = remember(item.id) { GeneratedArt.resId(resources, GeneratedArt.decorationArt(item.id)) }
+                        if (decoArt != 0) {
+                            Image(
+                                painter = painterResource(decoArt),
+                                contentDescription = null,
+                                modifier = Modifier.size(42.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Text(text = item.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = item.name, fontWeight = FontWeight.Bold)
@@ -211,6 +251,80 @@ fun ShopScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🆘", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ayudas de Partida",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Cuando se te acaban durante una partida, el juego te avisa y puedes ver un anuncio o comprar aquí. Tienes:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                HelpItem.entries.forEach { help ->
+                    val stock = helpStocks[help] ?: 0
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val helpArt = remember(help.id) { GeneratedArt.resId(resources, help.iconRes) }
+                        if (helpArt != 0) {
+                            Image(
+                                painter = painterResource(helpArt),
+                                contentDescription = null,
+                                modifier = Modifier.size(42.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = help.title, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "Tienes $stock · pack de ${help.packSize} usos",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val paid = goldLeaves >= help.packPrice
+                                if (paid) {
+                                    AudioHub.sound.playPurchase()
+                                } else {
+                                    AudioHub.sound.playUiError()
+                                }
+                                scope.launch {
+                                    repository.grantHelpStock(help.id, help.packSize, help.packPrice)
+                                }
+                            },
+                            enabled = goldLeaves >= help.packPrice,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(text = "${help.packPrice} 🍃")
+                        }
+                    }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "🎧", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -231,7 +345,19 @@ fun ShopScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = pack.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        val packArt = remember(pack.id) { GeneratedArt.resId(resources, GeneratedArt.asmrArt(pack.id)) }
+                        if (packArt != 0) {
+                            Image(
+                                painter = painterResource(packArt),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(10.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(text = pack.iconEmoji, style = MaterialTheme.typography.titleLarge)
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = pack.name, fontWeight = FontWeight.Bold)

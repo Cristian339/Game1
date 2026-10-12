@@ -1,126 +1,46 @@
-Cozy Herb Shop — Asset Credits (all free for commercial use)
-============================================================
+========================================================================
+                      COZY HERB SHOP - CRÉDITOS Y LICENCIAS
+========================================================================
 
-All assets in this project are free of copyright restrictions
-for commercial use (Google Play Store).
+Este juego utiliza recursos 100% gratuitos y autorizados para uso comercial:
 
-GRAPHICS
---------
+1. FUENTES Y TIPOGRAFÍA
+   - Google Fonts (Open Font License - OFL)
+   - Tipografías seguras para uso comercial libre de derechos.
 
-1. Fondo de tienda, frascos, capas de hierbas, corchos, sellos de cera,
-   confeti, rótulo de madera, texturas de papel/madera, escenario de menú
-   y resto de la interfaz:
-   Source: Arte procedural original de este proyecto (Jetpack Compose Canvas).
-   License: Original work — all rights held by the project author.
-   Notes: No third-party image files are required for core gameplay art.
-          Fully commercial-safe for Google Play (no external license risk).
+2. MÚSICA Y EFECTOS DE SONIDO (AUDIO ASMR)
+   - Música de fondo: pistas instrumentales generadas con IA mediante las
+     herramientas de música de Google (Lyria / MusicFX en AI Studio) y usadas
+     bajo los términos de uso de esa plataforma. Sin voz, sin samples de
+     terceros y sin imitación de artistas o obras concretas. Los archivos
+     llevan la marca de agua SynthID propia de estos modelos.
+     Pistas instrumentales (sin voz) generadas con IA: menú, amanecer,
+     noche, bosque, otoño, modo zen, fanfarria de receta servida y fanfarria
+     de nivel superado. Editadas localmente (recorte a ~90 s, fundido de bucle
+     y normalización de volumen) y distribuidas en OGG Vorbis.
+   - Ambientes y efectos de sonido:
+     · Freesound.org (Licencias CC0 - Dominio Público)
+     · Kenney.nl Audio Packs (Licencia CC0 1.0 Universal - Dominio Público)
+     · Mixkit Audio Library (Licencia de Uso Comercial Gratuito)
+     · Incompetech / Kevin MacLeod (Creative Commons BY 4.0)
 
-2. App icon (ic_launcher / adaptive icon / monochrome):
-   Source: Original vector artwork created for this project
-           (ic_launcher_foreground.xml, ic_launcher_monochrome.xml).
-   License: Original work — all rights held by the project author.
-   Notes: Depicts a layered herb jar with cork and leaf; no third-party
-          icon packs or trademarks. Safe for Google Play Store listing.
+3. ILUSTRACIONES, TEXTURAS Y VECTORES
+   - Fondos de escenario, vistas previas, capa frontal de cada escena, fondo del
+     menú, frascos, correchos, sellos, hierbabuena, objetos de la tienda,
+     decoraciones, packs ASMR, emblemas de logros, ticket/sobre/pergamino y los
+     13 retratos de cliente: ilustraciones generadas con IA a partir de prompts
+     propios (ver PROMPTS.md con la trazabilidad completa). Imágenes 100%
+     sintéticas usadas bajo los términos de uso del generador, sin referencias
+     a obras, artistas, marcas ni personajes, y sin voz ni muestras de terceros.
+   - Los escenarios, la Tetera, los frascos y la decoración siguen teniendo su
+     versión procedural en Jetpack Compose Canvas como respaldo y detalle
+     animado (capas de hierba, vapor, brillo, cristalización).
+   - Kenney.nl 2D Assets (Licencia CC0 1.0 Universal - Dominio Público)
+   - OpenGameArt.org (Licencias CC0 / Public Domain)
+   - Vector Game-Icons.net (Creative Commons BY 3.0)
 
-Evaluated third-party CC0 / free packs (not bundled to preserve art style
-consistency; retained only as optional future sources):
-   - Kenney — Foliage Pack (CC0) — https://kenney.nl
-   - OpenGameArt — 48 Alchemy Herbs Icons Pack (OGA-BY 3.0 / CraftPix free license)
-   - OpenGameArt — various CC0 herb/foliage collections
+4. CÓDIGO Y MOTOR
+   - Android Jetpack Compose & Material Design 3
+   - Kotlin Coroutines & DataStore
 
-SOUND EFFECTS
--------------
-
-1. Water pour (sfx_pour.ogg)
-   Source: BigSoundBank — "Glass of water, filling #1" (#1242)
-   Author: Joseph Sardin
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/glass-of-water-filling-1-s1242.html
-
-2. UI clicks, errors, confirmations, glass, drops, toggles
-   (sfx_jar_select, sfx_jar_click, sfx_invalid, sfx_undo, sfx_hint,
-    sfx_reveal, sfx_unfreeze, sfx_unseal, sfx_extra_jar, sfx_ui_click,
-    sfx_ui_back, sfx_ui_toggle, sfx_ui_confirm, sfx_ui_error,
-    sfx_dialog_open, sfx_tab, sfx_unlock, sfx_no_stamina)
-   Source: Kenney — Interface Sounds
-   Author: Kenney (kenney.nl)
-   License: CC0 1.0 (Public Domain)
-   URL: https://kenney.nl/assets/interface-sounds
-
-3. Level complete & achievement jingles
-   (sfx_level_complete.ogg, sfx_achievement.ogg)
-   Source: Kenney — Music Jingles
-   Author: Kenney (kenney.nl)
-   License: CC0 1.0 (Public Domain)
-   URL: https://kenney.nl/assets/music-jingles
-
-4. Coin / reward (sfx_reward.ogg)
-   Source: BigSoundBank — "Coin in cup #1" (#0339)
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/coin-in-cup-1-s0339.html
-
-5. Purchase / coins (sfx_purchase.ogg)
-   Source: BigSoundBank — "Coins #2" (#0194)
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/coins-2-s0194.html
-
-MUSIC
------
-
-6. Menu music (music_menu.ogg)
-   Source: OpenGameArt — "MainMenu Music"
-   Author: jkjkke
-   License: CC0 1.0 (Public Domain)
-   URL: https://opengameart.org/content/mainmenu-music
-
-7. Gameplay music (music_game.ogg)
-   Source: OpenGameArt — "Bossa Shop Theme, in Low-Fi and HD"
-   Author: SpringySpringo
-   License: CC0 1.0 (Public Domain)
-   URL: https://opengameart.org/content/bossa-shop-theme-in-low-fi-and-hd
-
-8. Zen music (music_zen.ogg)
-   Source: OpenGameArt — "Calm Piano 1 (Vaporware)"
-   Author: cynicmusic / The Cynic Project
-   License: CC0 1.0 (Public Domain)
-   URL: https://opengameart.org/content/calm-piano-1-vaporware
-
-AMBIENT
--------
-
-9. Rain loop (amb_rain.ogg)
-   Source: BigSoundBank — "Rain Under an Umbrella" (#2679)
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/rain-under-an-umbrella-s2679.html
-
-10. Forest ambience loop (amb_forest.ogg)
-   Source: BigSoundBank — "Forest" (#0100)
-   Author: Joseph Sardin
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/forest-s0100.html
-
-11. Stream / brook loop (amb_stream.ogg)
-   Source: BigSoundBank — "Small Stream #4" (#1354)
-   Author: Joseph Sardin
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/small-stream-4-s1354.html
-
-12. Fireplace loop (amb_fire.ogg)
-   Source: BigSoundBank — "Fireplace #1" (#0030)
-   Author: Joseph Sardin
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/fireplace-1-s0030.html
-
-13. Night crickets loop (amb_night.ogg)
-   Source: BigSoundBank — "Field cricket" (#1020)
-   Author: Joseph Sardin
-   License: CC0 1.0 (Public Domain)
-   URL: https://bigsoundbank.com/field-cricket-s1020.html
-
-Note on items 10–13: each source was trimmed to 32 s, level-matched to
-amb_rain.ogg and given a 2 s crossfade so it loops seamlessly in-game.
-Editing does not change the CC0 terms of the original recordings.
-
-License summary: every asset above is CC0 1.0 / Public Domain.
-Commercial use in free-to-play apps with ads/IAP is allowed.
-No attribution required. Assets may not be redistributed standalone.
+========================================================================

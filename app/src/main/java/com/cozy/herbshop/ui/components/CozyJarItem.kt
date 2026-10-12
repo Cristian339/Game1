@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +50,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -78,13 +83,165 @@ private fun Color.jarDarken(factor: Float): Color = Color(
 )
 
 /** Capa de hierba con gradiente pintado, moteado y brillo de superficie. */
+/**
+ * Agrupa las capas contiguas de la misma hierba (y mismo estado) en una sola
+ * columna de liquido. Al agrupar, dos Layers iguales se ven como una unica
+ * columna continua en lugar de dos bloques.
+ */
+private class LiquidRun(
+    val herb: Herb,
+    val firstIndex: Int,
+    val lastIndex: Int,
+    val hidden: Boolean
+)
+
+private fun List<JarLayer>.groupLiquidRuns(): List<LiquidRun> {
+    val runs = mutableListOf<LiquidRun>()
+    this.forEachIndexed { index, layer ->
+        val last = runs.lastOrNull()
+        if (last != null && last.herb == layer.herb && last.hidden == layer.isHidden) {
+            runs[runs.size - 1] = LiquidRun(last.herb, last.firstIndex, index, last.hidden)
+        } else {
+            runs.add(LiquidRun(layer.herb, index, index, layer.isHidden))
+        }
+    }
+    return runs
+}
+
+/**
+ * Columna de liquido: degradado, superficie ondulada animada, burbujas que
+ * suben, halo suave para que el sprite destaque y la hierba generada una sola
+ * vez por columna (no un bloque por capa).
+ */
+private fun DrawScope.drawLiquidColumn(
+    topLeft: Offset,
+    size: Size,
+    herb: Herb,
+    phase: Float,
+    seed: Int,
+    sprite: androidx.compose.ui.graphics.ImageBitmap?,
+    isTopGroup: Boolean
+) {
+    val radius = 9.dp.toPx()
+    val base = herb.defaultColor
+    val light = base.jarLighten(0.30f)
+    val dark = base.jarDarken(0.30f)
+    val rnd = Random(seed)
+
+    // Cuerpo del liquido
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(light, base, dark),
+            startY = topLeft.y,
+            endY = topLeft.y + size.height
+        ),
+        topLeft = topLeft,
+        size = size,
+        cornerRadius = CornerRadius(radius, radius)
+    )
+
+    // Halo claro detras del sprite para separarlo del color de fondo
+    val cx = topLeft.x + size.width / 2f
+    val cy = topLeft.y + size.height / 2f
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.30f), Color.Transparent),
+            center = Offset(cx, cy),
+            radius = size.height * 0.75f
+        ),
+        radius = size.height * 0.75f,
+        center = Offset(cx, cy)
+    )
+
+    // Sprites de la hierba: uno por columna, centrado y con buen contraste
+    sprite?.let { img ->
+        val maxH = size.height * 0.92f
+        val targetH = maxOf(maxH, 20.dp.toPx())
+        val w = targetH * (img.width.toFloat() / img.height.toFloat())
+        val drawW = minOf(w, size.width * 1.15f)
+        val drawH = drawW * (img.height.toFloat() / img.width.toFloat())
+        drawImage(
+            image = img,
+            dstOffset = androidx.compose.ui.unit.IntOffset(
+                x = (cx - drawW / 2f).toInt(),
+                y = (cy - drawH / 2f).toInt()
+            ),
+            dstSize = androidx.compose.ui.unit.IntSize(drawW.toInt(), drawH.toInt()),
+            alpha = 0.95f
+        )
+    }
+
+    // Burbujas que suben lentamente
+    repeat(4) { i ->
+        val bx = topLeft.x + size.width * (0.2f + rnd.nextFloat() * 0.6f)
+        val span = size.height + 10.dp.toPx()
+        val progress = ((phase / (2f * Math.PI.toFloat())) + rnd.nextFloat() + i * 0.27f) % 1f
+        val by = topLeft.y + size.height - progress * span
+        drawCircle(
+            color = Color.White.copy(alpha = 0.30f * (1f - progress)),
+            radius = (1.2f + rnd.nextFloat() * 1.8f).dp.toPx(),
+            center = Offset(bx, by)
+        )
+    }
+
+    // Superficie ondulada (menisco) en la parte alta de la columna
+    val amp = 2.2.dp.toPx()
+    val wavePath = androidx.compose.ui.graphics.Path().apply {
+        moveTo(topLeft.x, topLeft.y + amp)
+        var x = topLeft.x
+        val step = size.width / 16f
+        while (x <= topLeft.x + size.width) {
+            val rel = (x - topLeft.x) / size.width
+            val y = topLeft.y + amp * kotlin.math.sin(
+                phase * 1.6f + rel * 6.5f + seed * 0.7f
+            )
+            lineTo(x, y)
+            x += step
+        }
+        lineTo(topLeft.x + size.width, topLeft.y - amp)
+        lineTo(topLeft.x, topLeft.y - amp)
+        close()
+    }
+    drawPath(
+        path = wavePath,
+        brush = Brush.verticalGradient(
+            colors = listOf(Color.White.copy(alpha = 0.42f), Color.White.copy(alpha = 0.10f)),
+            startY = topLeft.y - amp,
+            endY = topLeft.y + amp * 2.4f
+        )
+    )
+
+    // Separacion suave entre columnas distintas
+    if (!isTopGroup) {
+        drawLine(
+            color = dark.jarDarken(0.25f).copy(alpha = 0.35f),
+            start = Offset(topLeft.x + 2.dp.toPx(), topLeft.y),
+            end = Offset(topLeft.x + size.width - 2.dp.toPx(), topLeft.y),
+            strokeWidth = 1.2.dp.toPx()
+        )
+    }
+
+    // Brillo del cristal sobre el liquido
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+            startY = topLeft.y,
+            endY = topLeft.y + size.height * 0.45f
+        ),
+        topLeft = topLeft,
+        size = size,
+        cornerRadius = CornerRadius(radius, radius)
+    )
+}
+
 private fun DrawScope.drawHerbLayer(
     topLeft: Offset,
     size: Size,
     layer: JarLayer,
     layerIndex: Int,
     jarId: Int,
-    textMeasurer: androidx.compose.ui.text.TextMeasurer
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    herbSprite: androidx.compose.ui.graphics.ImageBitmap? = null
 ) {
     val corner = CornerRadius(7.dp.toPx(), 7.dp.toPx())
     val baseColor = if (layer.isHidden) Color(0xFF78909C) else layer.herb.defaultColor
@@ -106,7 +263,40 @@ private fun DrawScope.drawHerbLayer(
         style = Stroke(width = 1.4.dp.toPx())
     )
 
+    // Capa pegajosa: una costura con grapas. Es la unica pista de que esa capa
+    // hace de tope, asi que tiene que verse sin tener que deducirla.
+    if (layer.isSticky) {
+        val seamY = topLeft.y + size.height * 0.28f
+        drawLine(
+            color = Color(0xFF6D4C41).copy(alpha = 0.55f),
+            start = Offset(topLeft.x + size.width * 0.12f, seamY),
+            end = Offset(topLeft.x + size.width * 0.88f, seamY),
+            strokeWidth = 2.4.dp.toPx()
+        )
+        listOf(0.26f, 0.5f, 0.74f).forEach { fx ->
+            drawCircle(
+                color = Color(0xFF8D6E63).copy(alpha = 0.75f),
+                radius = 1.9.dp.toPx(),
+                center = Offset(topLeft.x + size.width * fx, seamY)
+            )
+        }
+    }
+
     if (!layer.isHidden) {
+        // Sprite de la hierba generada, centrado sobre su capa.
+        herbSprite?.let { sprite ->
+            val h = size.height * 1.35f
+            val w = h * (sprite.width.toFloat() / sprite.height.toFloat())
+            drawImage(
+                image = sprite,
+                dstOffset = androidx.compose.ui.unit.IntOffset(
+                    x = (topLeft.x + (size.width - w) / 2f).toInt(),
+                    y = (topLeft.y + (size.height - h) / 2f).toInt()
+                ),
+                dstSize = androidx.compose.ui.unit.IntSize(w.toInt(), h.toInt()),
+                alpha = 0.92f
+            )
+        }
         val rnd = Random(jarId * 9973 + layerIndex * 131 + layer.herb.ordinal * 17)
         repeat(9) {
             val sx = topLeft.x + 3.dp.toPx() + rnd.nextFloat() * (size.width - 6.dp.toPx())
@@ -146,31 +336,33 @@ private fun DrawScope.drawHerbLayer(
     )
 
     if (!layer.isHidden && !layer.isFrozen) {
-        val symbolStyle = TextStyle(fontSize = 12.sp)
-        val layout = textMeasurer.measure(layer.herb.symbol, symbolStyle)
+        val symbolStyle = TextStyle(
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        val textToDraw = layer.herb.symbol
+        val layout = textMeasurer.measure(textToDraw, symbolStyle)
+        val cx = topLeft.x + (size.width - layout.size.width) / 2f
+        val cy = topLeft.y + (size.height - layout.size.height) / 2f
+
         drawText(
             textMeasurer = textMeasurer,
-            text = layer.herb.symbol,
+            text = textToDraw,
             style = symbolStyle,
-            topLeft = Offset(
-                x = topLeft.x + (size.width - layout.size.width) / 2f,
-                y = topLeft.y + (size.height - layout.size.height) / 2f
-            )
+            topLeft = Offset(cx, cy)
         )
     }
 
     if (layer.isHidden) {
-        val hiddenStyle = TextStyle(color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        val hiddenStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+        val hiddenShadow = TextStyle(color = Color.Black.copy(alpha = 0.8f), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         val layout = textMeasurer.measure("?", hiddenStyle)
-        drawText(
-            textMeasurer = textMeasurer,
-            text = "?",
-            style = hiddenStyle,
-            topLeft = Offset(
-                x = topLeft.x + (size.width - layout.size.width) / 2f,
-                y = topLeft.y + (size.height - layout.size.height) / 2f
-            )
-        )
+        val cx = topLeft.x + (size.width - layout.size.width) / 2f
+        val cy = topLeft.y + (size.height - layout.size.height) / 2f
+
+        drawText(textMeasurer = textMeasurer, text = "?", style = hiddenShadow, topLeft = Offset(cx + 1.5.dp.toPx(), cy + 1.5.dp.toPx()))
+        drawText(textMeasurer = textMeasurer, text = "?", style = hiddenStyle, topLeft = Offset(cx, cy))
     }
 
     if (layer.isFrozen) {
@@ -341,12 +533,119 @@ private fun DrawScope.drawWaxSeal() {
     )
 }
 
+/**
+ * Silueta de tetera: el pico y el asa se pintan sobre los bordes del cristal
+ * (el Canvas recorta a los límites del frasco) y la tapa va en el hueco del
+ * corcho ([drawTeapotLid]). Con [brewed] añade un resplandor cálido.
+ */
+private fun DrawScope.drawTeapot(brewed: Boolean) {
+    val w = size.width
+    val h = size.height
+    val ceramic = Color(0xFFF7E9D6)
+    val ceramicShade = Color(0xFFD9C0A2)
+    val trim = Color(0xFFC9A227)
+    val stroke = 1.6.dp.toPx()
+
+    if (brewed) {
+        drawSoftGlow(
+            center = Offset(w / 2f, h * 0.45f),
+            radius = w * 1.25f,
+            color = Color(0xFFFFE082).copy(alpha = 0.40f)
+        )
+    }
+
+    // Pico (derecha), dentro del ancho del frasco
+    val spout = Path().apply {
+        moveTo(w * 0.86f, h * 0.44f)
+        cubicTo(w * 1.00f, h * 0.38f, w * 1.02f, h * 0.24f, w * 0.99f, h * 0.15f)
+        lineTo(w * 0.90f, h * 0.17f)
+        cubicTo(w * 0.92f, h * 0.25f, w * 0.88f, h * 0.32f, w * 0.84f, h * 0.54f)
+        close()
+    }
+    drawPath(spout, color = ceramic)
+    drawPath(spout, color = ceramicShade, style = Stroke(width = stroke))
+
+    // Asa (izquierda), dentro de los límites del cristal
+    drawArc(
+        color = ceramic,
+        startAngle = 100f,
+        sweepAngle = 160f,
+        useCenter = false,
+        topLeft = Offset(0f, h * 0.30f),
+        size = Size(w * 0.42f, h * 0.40f),
+        style = Stroke(width = 5.5.dp.toPx())
+    )
+    drawArc(
+        color = ceramicShade,
+        startAngle = 100f,
+        sweepAngle = 160f,
+        useCenter = false,
+        topLeft = Offset(0f, h * 0.30f),
+        size = Size(w * 0.42f, h * 0.40f),
+        style = Stroke(width = 1.2.dp.toPx())
+    )
+
+    // Cuello de la tetera
+    drawRoundRect(
+        color = ceramic,
+        topLeft = Offset(-w * 0.04f, 0f),
+        size = Size(w * 1.08f, h * 0.06f),
+        cornerRadius = CornerRadius(h * 0.025f, h * 0.025f)
+    )
+    drawRect(
+        color = ceramicShade,
+        topLeft = Offset(-w * 0.04f, h * 0.055f),
+        size = Size(w * 1.08f, 1.5.dp.toPx())
+    )
+
+    // Base
+    drawRoundRect(
+        color = ceramic,
+        topLeft = Offset(-w * 0.04f, h * 0.94f),
+        size = Size(w * 1.08f, h * 0.06f),
+        cornerRadius = CornerRadius(h * 0.025f, h * 0.025f)
+    )
+    drawRect(
+        color = ceramicShade,
+        topLeft = Offset(-w * 0.04f, h * 0.94f),
+        size = Size(w * 1.08f, 1.5.dp.toPx())
+    )
+
+    // Marca de receta servida
+    if (brewed) {
+        drawCircle(color = Color(0xFFFFF3C4).copy(alpha = 0.9f), radius = 4.5.dp.toPx(), center = Offset(w * 0.5f, h * 0.5f))
+        drawCircle(color = Color(0xFFC9A227), radius = 2.4.dp.toPx(), center = Offset(w * 0.5f, h * 0.5f))
+    }
+}
+
+/** Tapa de la tetera: ocupa el hueco del corcho sobre el frasco. */
+private fun DrawScope.drawTeapotLid() {
+    val w = size.width
+    val h = size.height
+    val ceramic = Color(0xFFF7E9D6)
+    val ceramicShade = Color(0xFFD9C0A2)
+
+    val lid = Path().apply {
+        moveTo(w * 0.04f, h)
+        lineTo(w * 0.96f, h)
+        lineTo(w * 0.80f, h * 0.34f)
+        lineTo(w * 0.20f, h * 0.34f)
+        close()
+    }
+    drawPath(lid, color = ceramic)
+    drawPath(lid, color = ceramicShade, style = Stroke(width = 1.4.dp.toPx()))
+    drawCircle(color = Color(0xFFC9A227), radius = 2.6.dp.toPx(), center = Offset(w * 0.5f, h * 0.22f))
+    drawCircle(color = Color(0xFFFFECB3).copy(alpha = 0.85f), radius = 1.1.dp.toPx(), center = Offset(w * 0.46f, h * 0.16f))
+}
+
 @Composable
 fun CozyJarItem(
     jar: Jar,
     isSelected: Boolean,
     isPourSource: Boolean = false,
     isPourTarget: Boolean = false,
+    isRecipeBrewed: Boolean = false,
+    queuePosition: Int = 0,
     pourAngle: Float = 0f,
     onClick: () -> Unit,
     onPositioned: ((Rect) -> Unit)? = null,
@@ -448,6 +747,20 @@ fun CozyJarItem(
     val jarShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     val outlineColor = MaterialTheme.colorScheme.onSurface
     val accentColor = MaterialTheme.colorScheme.tertiary
+    val resources = rememberResources()
+    val herbSpriteFor: (Herb) -> androidx.compose.ui.graphics.ImageBitmap? = remember(resources) {
+        { herb -> GeneratedArt.herb(resources, herb) }
+    }
+    // Fase continua para ondear la superficie del liquido y subir las burbujas.
+    val liquidPhase by rememberInfiniteTransition(label = "liquid").animateFloat(
+        initialValue = 0f,
+        targetValue = (2.0 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "liquidPhase"
+    )
 
     Box(
         modifier = modifier
@@ -472,8 +785,8 @@ fun CozyJarItem(
         contentAlignment = Alignment.BottomCenter
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(modifier = Modifier.width(38.dp).height(13.dp)) {
-                drawCork(jar.isSealed)
+            Canvas(modifier = Modifier.width(if (jar.isTeapot) 60.dp else 38.dp).height(13.dp)) {
+                if (jar.isTeapot) drawTeapotLid() else drawCork(jar.isSealed)
             }
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -510,21 +823,38 @@ fun CozyJarItem(
                     val layerHeight = size.height / capacity
                     val inset = 4.dp.toPx()
 
-                    jar.layers.forEachIndexed { index, layer ->
-                        val yTop = size.height - ((index + 1) * layerHeight)
-                        val topLeft = Offset(inset, yTop + 2.dp.toPx())
-                        val layerSize = Size(size.width - inset * 2, layerHeight - 4.dp.toPx())
-                        drawHerbLayer(
-                            topLeft = topLeft,
-                            size = layerSize,
-                            layer = layer,
-                            layerIndex = index,
-                            jarId = jar.id,
-                            textMeasurer = textMeasurer
-                        )
+                    // El liquido se agrupa: dos capas contiguas de la misma hierba
+                    // forman una sola columna continua con una unica imagen.
+                    val groups = jar.layers.groupLiquidRuns()
+                    groups.forEach { group ->
+                        val fromTop = size.height - ((group.lastIndex + 1) * layerHeight)
+                        val toBottom = size.height - (group.firstIndex * layerHeight)
+                        val groupTopLeft = Offset(inset, fromTop + 2.dp.toPx())
+                        val groupSize = Size(size.width - inset * 2, (toBottom - fromTop) - 4.dp.toPx())
+
+                        if (group.hidden) {
+                            drawHerbLayer(
+                                topLeft = groupTopLeft,
+                                size = Size(groupSize.width, layerHeight - 4.dp.toPx()),
+                                layer = jar.layers[group.firstIndex],
+                                layerIndex = group.firstIndex,
+                                jarId = jar.id,
+                                textMeasurer = textMeasurer
+                            )
+                        } else {
+                            drawLiquidColumn(
+                                topLeft = groupTopLeft,
+                                size = groupSize,
+                                herb = group.herb,
+                                phase = liquidPhase,
+                                seed = jar.id * 31 + group.firstIndex,
+                                sprite = herbSpriteFor(group.herb),
+                                isTopGroup = group.firstIndex == groups.last().firstIndex
+                            )
+                        }
                     }
 
-                    if (jar.isCompleted && !jar.isEmpty) {
+                    if (jar.isCompleted && !jar.isEmpty && !jar.isTeapot) {
                         val shimmer = Brush.verticalGradient(
                             listOf(
                                 Color.White.copy(alpha = 0.0f),
@@ -542,17 +872,51 @@ fun CozyJarItem(
                     if (jar.isSealed) {
                         drawWaxSeal()
                     }
+
+                    if (jar.isTeapot) {
+                        drawTeapot(brewed = isRecipeBrewed)
+                    }
                 }
             }
         }
 
-        if (jar.isCompleted && !jar.isEmpty) {
+        if (queuePosition > 0) {
+            // Movimiento encolado durante la animación: muestra su orden.
+            val queueScale by animateFloatAsState(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+                label = "queuePop"
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(2.dp)
+                    .size(22.dp)
+                    .scale(queueScale)
+                    .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+                    .border(
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.onTertiary,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "$queuePosition",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiary
+                )
+            }
+        }
+
+        if ((jar.isCompleted && !jar.isEmpty) || isRecipeBrewed) {
             Canvas(
                 modifier = Modifier
-                    .width(38.dp)
-                    .height(24.dp)
+                    .width(if (jar.isTeapot) 52.dp else 38.dp)
+                    .height(if (jar.isTeapot) 34.dp else 24.dp)
                     .align(Alignment.TopCenter)
-                    .offset(y = (-18).dp)
+                    .offset(y = if (jar.isTeapot) (-26).dp else (-18).dp)
             ) {
                 listOf(0.3f, 0.5f, 0.7f).forEachIndexed { i, fx ->
                     val r = (3f + i * 0.5f).dp.toPx()

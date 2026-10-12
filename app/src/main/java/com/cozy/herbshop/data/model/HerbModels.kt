@@ -32,7 +32,13 @@ enum class Herb(
 data class JarLayer(
     val herb: Herb,
     val isHidden: Boolean = false,
-    val isFrozen: Boolean = false
+    val isFrozen: Boolean = false,
+    /**
+     * Capa pegajosa (sector del bosque): esta pegada al frasco y no se deja
+     * verter por encima. Es un tope, asi que obliga a gastar una jugada de mas
+     * para sacar el bloque de la vez.
+     */
+    val isSticky: Boolean = false
 )
 
 data class CustomerOrder(
@@ -47,15 +53,18 @@ data class Jar(
     val id: Int,
     val capacity: Int = 4,
     val layers: List<JarLayer> = emptyList(),
-    val isSealed: Boolean = false
+    val isSealed: Boolean = false,
+    val isTeapot: Boolean = false
 ) {
     val stack: List<Herb> get() = layers.map { it.herb }
     val isFull: Boolean get() = layers.size >= capacity
     val isEmpty: Boolean get() = layers.isEmpty()
     val topLayer: JarLayer? get() = layers.lastOrNull()
 
-    // Solo se obtiene la hierba superior si el frasco no está sellado, la capa está revelada y no está congelada
-    val topHerb: Herb? get() = if (isSealed) null else topLayer?.takeIf { !it.isHidden && !it.isFrozen }?.herb
+    // Solo se obtiene la hierba superior si el frasco no está sellado y la capa
+    // está revelada. Las capas congeladas son un efecto visual: se descongelan al
+    // aflorar y nunca bloquean un vertido (así la Pista siempre es jugable).
+    val topHerb: Herb? get() = if (isSealed) null else topLayer?.takeIf { !it.isHidden }?.herb
 
     val topCount: Int
         get() {
@@ -64,10 +73,16 @@ data class Jar(
             var count = 0
             for (i in layers.indices.reversed()) {
                 val layer = layers[i]
+                // Una capa pegajosa que tenga algo encima hace de tope: el
+                // vertido se para ahi y hay que gastarla en otra jugada.
+                if (i != layers.lastIndex && layer.isSticky) break
                 if (!layer.isHidden && !layer.isFrozen && layer.herb == top) count++ else break
             }
             return count
         }
+
+    /** Si el frasco tiene alguna capa pegajosa. Lo usa el aviso del nivel. */
+    val hasSticky: Boolean get() = layers.any { it.isSticky }
 
     val isCompleted: Boolean
         get() = isEmpty || (isFull && !isSealed && layers.all { !it.isHidden && !it.isFrozen && it.herb == layers.first().herb })
@@ -107,8 +122,31 @@ data class GameLevel(
     val jars: List<List<String>>,
     val customerOrder: CustomerOrder? = null,
     val isDailyChallenge: Boolean = false,
-    val isZenMode: Boolean = false
+    val isZenMode: Boolean = false,
+    /**
+     * Jugadas de la solucion que el generador comprobo al crear el nivel. Es el
+     * "par": lo que cuesta el nivel bien hecho. Sale gratis porque el generador
+     * ya resuelve el nivel para asegurarse de que se puede terminar.
+     */
+    val parMoves: Int? = null,
+    /**
+     * Regla especial del sector. Va en el nivel y no se deduce del numero para
+     * que el mapa y la partida no puedan contradecirse.
+     */
+    val sectorRule: SectorRule = SectorRule.NONE
 )
+
+/**
+ * La novedad que trae cada sector. El camino se va haciendo mas dificil porque
+ * cada tramo anade una regla, no solo mas frascos.
+ */
+enum class SectorRule(val displayName: String) {
+    NONE(""),
+    GRINDER("Molinillo"),
+    MOVE_LIMIT("Te despues de la cena"),
+    STICKY("Capa pegajosa"),
+    ALL("Todo a la vez")
+}
 
 sealed class PourResult {
     data class Success(val countPoured: Int) : PourResult()

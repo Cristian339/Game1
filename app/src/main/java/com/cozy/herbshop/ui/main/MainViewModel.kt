@@ -41,6 +41,13 @@ class MainViewModel(
         initialValue = MainUiState()
     )
 
+    val decorations: StateFlow<Set<String>> = preferencesRepository.unlockedDecorationsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
     fun consumeStaminaForGame(onSuccess: () -> Unit, onNoStamina: () -> Unit) {
         viewModelScope.launch {
             val success = preferencesRepository.consumeStamina()
