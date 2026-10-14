@@ -41,6 +41,14 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.all {
+            // Mismo techo de memoria que un movil. Sin esto los tests se pasan con
+            // el heap grande de la JVM y no reproducen el OutOfMemoryError que ve
+            // el jugador al entrar en los niveles altos.
+            it.maxHeapSize = "192m"
+        }
+    }
     packaging {
         resources {
             excludes += "/META-DIR/{AL2.0,LGPL2.1}"

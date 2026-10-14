@@ -51,7 +51,6 @@ class NotificationHelper(private val context: Context) {
                 .setSmallIcon(R.drawable.ic_dialog_info)
                 .setContentTitle("☕ ¡Tus frascos de té están llenos!")
                 .setContentText("Tus 5 frascos se han recargado por completo. ¡Es hora de un momento relajante!")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
 
             val manager = NotificationManagerCompat.from(context)

@@ -17,11 +17,12 @@ class LevelRepository(
     private val levelGenerator: LevelGenerator = LevelGenerator()
 ) {
     companion object {
-        /**
-         * Niveles puerta: la receta es obligatoria y al cumplirla se desbloquea
-         * la siguiente hierba. Intervalos crecientes para alargar la campaña.
-         */
-        val GATE_LEVELS = setOf(4, 9, 15, 21, 28)
+/**
+ * Niveles puerta: la receta es obligatoria y al cumplirla se desbloquea
+ * la siguiente hierba. Cae el ultimo nivel de cada sector, asi que en el
+ * mapa se ve que el camino avanza y con que te llevas a cambio.
+ */
+val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
         fun isGateLevel(levelNumber: Int): Boolean = levelNumber in GATE_LEVELS
     }
@@ -49,7 +50,9 @@ class LevelRepository(
 
     fun getLevel(levelNumber: Int): GameLevel {
         val order = createCustomerOrderForLevel(levelNumber)
-        val requiredOrder = if (isGateLevel(levelNumber)) order?.requiredHerbs else null
+        // Con receta el nivel se genera y valida con la tetera incluida, para que
+        // el pedido siempre sea preparable (+50 🍃 y puerta de hierba).
+        val requiredOrder = order?.requiredHerbs
 
         val predefined = loadPredefinedLevels()
         val found = predefined.find { it.levelNumber == levelNumber }
@@ -57,9 +60,17 @@ class LevelRepository(
             return found.copy(customerOrder = order)
         }
 
-        val numHerbs = minOf(3 + (levelNumber / 3), Herb.entries.size)
+        val numHerbs = minOf(3 + (levelNumber / 5), 6)
         val jarCapacity = 4
-        val emptyJars = 2
+        // Tres frascos vacios y no dos. Con el reparto disperso (cuatro hierbas
+        // distintas en cada frasco) dos vacios dejan el nivel justo en el limite
+        // de lo que se puede comprobar, y el generador caia al nivel de reserva
+        // muy a menudo. Con tres, casi todo sale verificable y sigue siendo
+        // puzle de verdad.
+        // A partir de cuatro colores, tres frascos vacios se quedan cortos para
+        // ordenar: el reparto no encontraba una solucion y el nivel caia al de
+        // reserva. Con cuatro si sale siempre.
+        val emptyJars = if (numHerbs >= 4) 4 else 3
 
         val generated = levelGenerator.generateSolvableLevel(
             levelNumber = levelNumber,
@@ -89,16 +100,6 @@ class LevelRepository(
         val todaySeed = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
         val random = Random(todaySeed)
 
-        // levelNumber 999 es solo un identificador de navegación; la dificultad
-        // real se genera con 4 (misterio + sellado, sin congelados rotos).
-        val level = levelGenerator.generateSolvableLevel(
-            levelNumber = 4,
-            numHerbTypes = 4,
-            emptyJars = 2,
-            jarCapacity = 4,
-            random = random
-        ).copy(levelNumber = 999)
-
         val dailyOrder = CustomerOrder(
             id = "daily_$todaySeed",
             customerName = "Madame Flora",
@@ -107,49 +108,67 @@ class LevelRepository(
             requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.LAVENDER)
         )
 
+        // levelNumber 4 es solo un identificador de navegación; la dificultad
+        // real se genera con 4 (misterio + sellado, sin congelados rotos).
+        val level = levelGenerator.generateSolvableLevel(
+            levelNumber = 4,
+            numHerbTypes = 4,
+            emptyJars = 2,
+            jarCapacity = 4,
+            random = random,
+            requiredOrder = dailyOrder.requiredHerbs
+        ).copy(levelNumber = 999)
+
         return level.copy(
             customerOrder = dailyOrder,
             isDailyChallenge = true
         )
     }
 
+    /**
+     * Receta del cliente en un nivel, sin llegar a generar el nivel. El mapa la
+     * usa para enseñar qué hay que servir sin pagar una búsqueda del solver.
+     */
+    fun orderForLevel(levelNumber: Int): CustomerOrder? = createCustomerOrderForLevel(levelNumber)
+
     private fun createCustomerOrderForLevel(levelNumber: Int): CustomerOrder? {
         // Niveles de aprendizaje: sin receta
         if (levelNumber in 1..3) return null
 
-        // Puertas de hierba: receta siempre presente, con hierbas disponibles en el nivel
+        // Puertas de hierba: receta siempre presente, con hierbas disponibles en el nivel.
+        // El nivel cierra su sector, asi que cada una es el broche de un tramo.
         if (isGateLevel(levelNumber)) {
             return when (levelNumber) {
-                4 -> CustomerOrder(
-                    id = "gate_4",
+                10 -> CustomerOrder(
+                    id = "gate_10",
                     customerName = "Vendedora Rosa",
                     dialogue = "¡Prepara manzanilla con romero y te daré romero para tu tienda!",
                     recipeName = "Infusión del Caminante",
                     requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.ROSEMARY, Herb.ROSEMARY)
                 )
-                9 -> CustomerOrder(
-                    id = "gate_9",
+                20 -> CustomerOrder(
+                    id = "gate_20",
                     customerName = "Mercader Zafiro",
                     dialogue = "Trae un té de hibisco y te revelaré mi cofre de hibisco.",
                     recipeName = "Té del Trópico Rojo",
                     requiredHerbs = listOf(Herb.HIBISCUS, Herb.HIBISCUS, Herb.ROSEMARY, Herb.ROSEMARY)
                 )
-                15 -> CustomerOrder(
-                    id = "gate_15",
+                30 -> CustomerOrder(
+                    id = "gate_30",
                     customerName = "Sabia Aurelia",
                     dialogue = "La canela solo se gana con paciencia… y con este té.",
                     recipeName = "Elixir de Canela Antigua",
                     requiredHerbs = listOf(Herb.CINNAMON, Herb.CINNAMON, Herb.HIBISCUS, Herb.HIBISCUS)
                 )
-                21 -> CustomerOrder(
-                    id = "gate_21",
+                40 -> CustomerOrder(
+                    id = "gate_40",
                     customerName = "Jardinera Luna",
                     dialogue = "Mi caléndula es para quien domine la mezcla dorada.",
                     recipeName = "Sérum de Caléndula",
                     requiredHerbs = listOf(Herb.CALENDULA, Herb.CALENDULA, Herb.MINT, Herb.MINT)
                 )
                 else -> CustomerOrder(
-                    id = "gate_28",
+                    id = "gate_50",
                     customerName = "Ermitaño Verde",
                     dialogue = "El tomillo silvestre premia al último maestro té.",
                     recipeName = "Bálsamo del Tomillo Silvestre",
@@ -181,7 +200,23 @@ class LevelRepository(
     }
 
     fun convertToJars(level: GameLevel): List<Jar> {
-        return level.jars.mapIndexed { index, herbIds ->
+        val order = level.customerOrder
+        val rawJars = level.jars.toMutableList()
+
+        // La tetera es obligatoria en todo nivel con receta: si el nivel no trae
+        // ningún frasco vacío se añade uno (si no, la mezcla sería imposible).
+        var teapotJarIndex = -1
+        if (order != null) {
+            teapotJarIndex = rawJars.indexOfLast { it.isEmpty() }
+            if (teapotJarIndex < 0) {
+                rawJars.add(emptyList())
+                teapotJarIndex = rawJars.lastIndex
+            }
+        }
+
+        val teapotCapacity = order?.requiredHerbs?.size?.coerceAtLeast(1) ?: level.jarCapacity
+
+        return rawJars.mapIndexed { index, herbIds ->
             var jarIsSealed = false
             val layers = herbIds.map { rawId ->
                 var cleanId = rawId
@@ -194,11 +229,25 @@ class LevelRepository(
                     isFrozen = true
                     cleanId = cleanId.removePrefix("frozen:")
                 }
+                val isSticky = cleanId.startsWith("sticky:")
+                if (isSticky) cleanId = cleanId.removePrefix("sticky:")
                 val isHidden = cleanId.startsWith("?") || cleanId.startsWith("mystery:")
                 val herbId = cleanId.removePrefix("?").removePrefix("mystery:")
-                JarLayer(herb = Herb.fromId(herbId), isHidden = isHidden, isFrozen = isFrozen)
+                JarLayer(
+                    herb = Herb.fromId(herbId),
+                    isHidden = isHidden,
+                    isFrozen = isFrozen,
+                    isSticky = isSticky
+                )
             }
-            Jar(id = index, capacity = level.jarCapacity, layers = layers, isSealed = jarIsSealed).revealTopLayer()
+            val isTeapot = (index == teapotJarIndex)
+            Jar(
+                id = index,
+                capacity = if (isTeapot) teapotCapacity else level.jarCapacity,
+                layers = layers,
+                isSealed = jarIsSealed,
+                isTeapot = isTeapot
+            ).revealTopLayer().unfreezeTopLayer()
         }
     }
 }
