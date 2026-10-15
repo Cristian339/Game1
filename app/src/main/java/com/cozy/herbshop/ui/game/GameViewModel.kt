@@ -6,6 +6,7 @@ import com.cozy.herbshop.data.audio.SoundManager
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.HelpItem
 import com.cozy.herbshop.data.model.Jar
+import com.cozy.herbshop.data.model.JournalLetters
 import com.cozy.herbshop.data.model.PourResult
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 import com.cozy.herbshop.game.HerbUnlocks
@@ -619,6 +620,13 @@ fun loadLevel(levelNumber: Int) {
                     soundManager?.playUnlock()
                     _uiState.update { it.copy(newlyUnlockedHerb = nextLockedHerb) }
                 }
+            }
+
+            // El diario: al terminar la puerta que cierra el tramo llega la carta
+            // de su sector. La tabla es la misma que lee el diario, asi que la
+            // carta que se entrega es exactamente la que aparece despues.
+            JournalLetters.alTerminarPuerta(state.levelNumber)?.let { carta ->
+                preferencesRepository.unlockCustomerLetter(carta.id)
             }
 
             if (!state.isDailyChallenge) {

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.cozy.herbshop.data.model.JournalLetters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -190,7 +191,7 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     val customerLettersFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
-        prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
+        prefs[CUSTOMER_LETTERS] ?: JournalLetters.INICIALES
     }
 
     /** Hierbas secretas que el jugador ya ha destapado en alguna puerta. */
@@ -346,7 +347,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun unlockCustomerLetter(letterId: String) {
         context.dataStore.edit { prefs ->
-            val set = prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
+            val set = prefs[CUSTOMER_LETTERS] ?: JournalLetters.INICIALES
             prefs[CUSTOMER_LETTERS] = set + letterId
         }
     }

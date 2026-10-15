@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.CustomerLetter
+import com.cozy.herbshop.data.model.JournalLetters
 import com.cozy.herbshop.ui.components.cozyBackground
 import com.cozy.herbshop.data.repository.UserPreferencesRepository
 
@@ -52,31 +53,9 @@ fun JournalScreen(
     val unlockedLetters by repository.customerLettersFlow.collectAsState(initial = emptySet())
     var selectedLetter by remember { mutableStateOf<CustomerLetter?>(null) }
 
-    val letters = remember {
-        listOf(
-            CustomerLetter(
-                id = "letter_clara",
-                senderName = "Abuela Clara",
-                senderAvatar = "👵",
-                letterTitle = "Carta de Agradecimiento - Dulce Calma",
-                content = "Querido herbolario, la infusión de Manzanilla y Lavanda que me preparaste ayer me ayudó a dormir plácidamente toda la noche. ¡Hacía meses que no descansaba tan bien! Gracias por llenar tu tienda de tanto cariño."
-            ),
-            CustomerLetter(
-                id = "letter_arthur",
-                senderName = "Botánico Arthur",
-                senderAvatar = "👨‍🔬",
-                letterTitle = "Notas de Investigación - Menta & Romero",
-                content = "¡Estimado colega! El elixir de concentración con Menta y Romero fue un éxito rotundo durante mis horas de estudio sobre la flora silvestre. Tu precisión con las capas de hierbas es admirable."
-            ),
-            CustomerLetter(
-                id = "letter_flora",
-                senderName = "Madame Flora",
-                senderAvatar = "🌺",
-                letterTitle = "Un Té Especial - Flor de Jamaica",
-                content = "¡Hola querido! Mi té de Flor de Jamaica y Canela causó sensación en el té de la tarde con las vecinas del pueblo. Todas quieren saber el secreto de tu tienda."
-            )
-        )
-    }
+    // La tabla de cartas vive en [JournalLetters]: el diario y la partida leen la
+    // misma, asi que la que se desbloquea al terminar una puerta es la que se lee.
+    val letters = remember { JournalLetters.TODAS }
 
     selectedLetter?.let { letter ->
         AlertDialog(

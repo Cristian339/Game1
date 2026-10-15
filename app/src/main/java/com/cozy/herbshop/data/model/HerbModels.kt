@@ -290,5 +290,7 @@ data class CustomerLetter(
     val senderName: String,
     val senderAvatar: String,
     val letterTitle: String,
-    val content: String
+    val content: String,
+    /** Puerta que entrega esta carta, o null si ya estaba en el buzon. */
+    val gate: Int? = null
 )
