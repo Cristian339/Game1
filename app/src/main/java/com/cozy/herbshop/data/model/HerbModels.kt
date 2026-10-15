@@ -27,6 +27,13 @@ enum class Herb(
             return entries.find { it.id.equals(id, ignoreCase = true) } ?: CHAMOMILE
         }
     }
+
+    /**
+     * Lo que sale al pasar esta hierba por el molinillo: la siguiente del ciclo,
+     * dando la vuelta al final. Es la unica regla de conversion del juego, y esta
+     * aqui para que el motor, el solver y el generador no puedan discrepar.
+     */
+    val molida: Herb get() = entries[(ordinal + 1) % entries.size]
 }
 
 data class JarLayer(
@@ -54,7 +61,13 @@ data class Jar(
     val capacity: Int = 4,
     val layers: List<JarLayer> = emptyList(),
     val isSealed: Boolean = false,
-    val isTeapot: Boolean = false
+    val isTeapot: Boolean = false,
+    /**
+     * Molinillo: acepta cualquier hierba y la transforma en la siguiente del
+     * ciclo ([Herb.molida]). No es un frasco de almacen, es una herramienta, asi
+     * que para terminar el nivel tiene que quedar vacio.
+     */
+    val isGrinder: Boolean = false
 ) {
     val stack: List<Herb> get() = layers.map { it.herb }
     val isFull: Boolean get() = layers.size >= capacity
@@ -85,7 +98,8 @@ data class Jar(
     val hasSticky: Boolean get() = layers.any { it.isSticky }
 
     val isCompleted: Boolean
-        get() = isEmpty || (isFull && !isSealed && layers.all { !it.isHidden && !it.isFrozen && it.herb == layers.first().herb })
+        get() = if (isGrinder) isEmpty
+        else isEmpty || (isFull && !isSealed && layers.all { !it.isHidden && !it.isFrozen && it.herb == layers.first().herb })
 
     fun unseal(): Jar = copy(isSealed = false)
 
@@ -133,7 +147,13 @@ data class GameLevel(
      * Regla especial del sector. Va en el nivel y no se deduce del numero para
      * que el mapa y la partida no puedan contradecirse.
      */
-    val sectorRule: SectorRule = SectorRule.NONE
+    val sectorRule: SectorRule = SectorRule.NONE,
+    /**
+     * Frasco que hace de molinillo, si el sector lo trae. Va explicito y no se
+     * deduce (como la tetera se deducia del ultimo frasco vacio) porque los dos
+     * son frascos vacios y el nivel puede traer los dos a la vez.
+     */
+    val grinderJarIndex: Int? = null
 )
 
 /**
@@ -145,7 +165,37 @@ enum class SectorRule(val displayName: String) {
     GRINDER("Molinillo"),
     MOVE_LIMIT("Te despues de la cena"),
     STICKY("Capa pegajosa"),
-    ALL("Todo a la vez")
+    ALL("Todo a la vez");
+
+    /** Si este sector trae molinillo. */
+    val traeMolinillo: Boolean get() = this == GRINDER || this == ALL
+
+    /**
+     * Lo que la ficha del nivel anuncia de este sector. [displayName] vale para
+     * nombrar el sector, pero "Todo a la vez" no le dice nada al jugador: en la
+     * ficha van las reglas nuevas una a una.
+     */
+    val novedades: List<String>
+        get() = when (this) {
+            NONE -> emptyList()
+            ALL -> listOf("Molinillo", "Capa pegajosa")
+            else -> listOf(displayName)
+        }
+
+    companion object {
+        /**
+         * El sector de un nivel. Vive aqui, y no en el generador ni en el mapa,
+         * para que los dos lean la misma tabla: antes estaba escrita dos veces y
+         * el mapa podia anunciar una regla que la partida no traia.
+         */
+        fun forLevel(levelNumber: Int): SectorRule = when (levelNumber) {
+            in 1..10 -> NONE
+            in 11..20 -> GRINDER
+            in 21..30 -> MOVE_LIMIT
+            in 31..40 -> STICKY
+            else -> ALL
+        }
+    }
 }
 
 sealed class PourResult {

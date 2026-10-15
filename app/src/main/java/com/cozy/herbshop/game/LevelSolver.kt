@@ -4,6 +4,7 @@ import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.JarLayer
 import java.util.ArrayDeque
+import kotlin.random.Random
 
 /**
  * Resuelve niveles de frascos.
@@ -26,7 +27,17 @@ class LevelSolver {
     /** Capa dentro de un frasco, con su estado de "misterio". */
     data class Slot(val herb: Herb, val hidden: Boolean = false, val sticky: Boolean = false)
 
-    data class State(val jars: List<List<Slot>>, val sealed: Set<Int>)
+    data class State(
+        val jars: List<List<Slot>>,
+        val sealed: Set<Int>,
+        /**
+         * Frasco que hace de molinillo, si el nivel trae uno. La busqueda no lo
+         * usa: no puede ser destino (solo admite una hierba y la transforma, y
+         * modelarlo aqui no compensa) ni origen (siempre esta vacio). Asi sus
+         * soluciones siguen siendo ejecutables tal cual en el motor.
+         */
+        val grinder: Int? = null
+    )
 
     private data class Step(val moves: List<Pair<Int, Int>>, val state: State)
 
@@ -45,6 +56,13 @@ class LevelSolver {
 
         /** Tope de vertidos del reparto sin busqueda, para que no se ciclie. */
         const val MAX_PASOS_REPARTO = 600
+
+        /**
+         * Formas de recorrer los frascos en el reparto: en orden, al reves y dos
+         * barajados. El reparto es voraz, prueba la primera jugada que ve, y a
+         * veces se encierra; con otro orden la misma partida sale.
+         */
+        const val ESTRATEGIAS_REPARTO = 7
     }
 
     fun isSolvable(initialJars: List<Jar>, requiredOrder: List<Herb>? = null): Boolean {
@@ -81,50 +99,81 @@ class LevelSolver {
         // el motor destapa la cima de origen y destino tras cada vertido. Si se
         // guarda la marca de pegajosa, que el reparto tiene que respetar igual que
         // el motor.
-        val frascos: MutableList<MutableList<JarLayer>> =
-            initialJars.map { jar -> jar.layers.toMutableList() }.toMutableList()
+        val frascosIniciales = initialJars.map { jar -> jar.layers.toMutableList() }.toMutableList()
+        var frascos: MutableList<MutableList<JarLayer>> = frascosIniciales.map { it.toMutableList() }.toMutableList()
         // Un frasco sellado no se puede tocar hasta que se abren otros completando
         // frascos, igual que hace el motor: se van abriendo sobre la marcha.
-        val sellados = initialJars.map { it.isSealed }.toMutableList()
-        val movimientos = mutableListOf<Pair<Int, Int>>()
+        val selladosIniciales = initialJars.map { it.isSealed }
+        var sellados = selladosIniciales.toMutableList()
+        var movimientos = mutableListOf<Pair<Int, Int>>()
 
-        fun limiteDe(indice: Int): Int = if (indice == teapotIndex) teapotCapacity else capacity
+        // El molinillo es el unico frasco que no es un frasco: guarda una sola
+        // hierba y la transforma. El reparto no lo usa como destino (no sabria
+        // modelar la transformacion), pero si tiene que exigir que quede vacio,
+        // que es la meta del motor.
+        val grinderIndex = initialJars.indexOfFirst { it.isGrinder }.takeIf { it >= 0 }
 
-        // Igual que el motor: de un frasco con la cima escondida no se puede
-        // verter nada. Si el reparto no lo respetara, su solucion leeria jugadas
-        // que luego el motor rechaza.
+        fun limiteDe(indice: Int): Int = when (indice) {
+            teapotIndex -> teapotCapacity
+            grinderIndex -> 1
+            else -> capacity
+        }
+
+        // Igual que el motor: de un frasco sellado o con la cima escondida o
+        // congelada no se puede verter ([GameEngine.pour] y [Jar.topCount]). Si el
+        // reparto no lo respetara, leeria jugadas que el motor rechaza.
         fun jugables(): List<Int> =
             frascos.indices.filter {
-                it != teapotIndex && !sellados[it] && frascos[it].lastOrNull()?.isHidden != true
+                it != teapotIndex && !sellados[it] &&
+                    frascos[it].lastOrNull()?.let { cima -> !cima.isHidden && !cima.isFrozen } == true
             }
+
+        /** Destinos validos para ordenar: ni la tetera, ni el molinillo, ni un sellado. */
+        fun destinos(): List<Int> = frascos.indices.filter {
+            it != teapotIndex && it != grinderIndex && !sellados[it]
+        }
 
         fun bloqueSuperior(indice: Int): Int {
             val frasco = frascos[indice]
             if (frasco.isEmpty()) return 0
-            if (frasco.last().isHidden) return 0
+            // Cima escondida o congelada: el motor no deja verter de ahi, cuenta
+            // como cero.
+            if (frasco.last().isHidden || frasco.last().isFrozen) return 0
             val cima = frasco.last().herb
             var n = 0
             for (k in frasco.indices.reversed()) {
-                // La capa pegajosa hace de tope, igual que en el motor.
-                if (k != frasco.lastIndex && frasco[k].isSticky) break
+                // La capa pegajosa, escondida o congelada corta el bloque, igual
+                // que en el motor: solo sale lo que hay por encima del tope.
+                val tope = frasco[k].isSticky || frasco[k].isHidden || frasco[k].isFrozen
+                if (k != frasco.lastIndex && tope) break
                 if (frasco[k].herb == cima) n++ else break
             }
             return n
         }
 
-        // Meta del motor: frasco vacio, o lleno y de una sola hierba.
+        // Meta del motor, tal cual: con receta el nivel se gana sirviendola
+        // ([GameEngine.isOrderFulfilled] pide la tetera con la receta y el resto
+        // vacio o de un solo color) y sin receta hay que ordenar los frascos
+        // ([Jar.isCompleted]).
         fun terminado(indice: Int): Boolean {
+            // El molinillo no almacena: para dar el nivel por bueno tiene que
+            // quedar vacio, como la tetera tiene que cuadrar con la receta.
+            if (indice == grinderIndex) return frascos[indice].isEmpty()
             if (indice == teapotIndex) {
                 return recipe == null || frascos[indice].map { it.herb } == recipe
             }
             val frasco = frascos[indice]
             if (frasco.isEmpty()) return true
+            // Un frasco sellado no cuenta como terminado hasta que se abre.
+            if (sellados[indice]) return false
             if (frasco.map { it.herb }.distinct().size > 1) return false
-            // Sin receta hay que llenar el frasco entero: sobran cuatro capas de
-            // cada hierba. Con receta no, porque la tetera se lleva parte de
-            // ellas y lo que queda nunca llegaria a cuatro. Es la misma regla que
-            // aplica el motor.
-            return recipe != null || frasco.size == limiteDe(indice)
+            // Con receta el motor admite el frasco a medias mientras sea de una
+            // sola hierba: la tetera se lleva 2+2 y lo que queda nunca llega a
+            // cuatro. Sin receta hay que llenarlo, y sin capas por destapar,
+            // porque [Jar.isCompleted] tambien las mira.
+            if (recipe != null) return true
+            return frasco.size == limiteDe(indice) &&
+                frasco.all { !it.isHidden && !it.isFrozen }
         }
 
         fun completo(indice: Int): Boolean {
@@ -149,60 +198,97 @@ class LevelSolver {
             }
         }
 
+        /** Destapa y descongela la cima, como hace el motor al verter. */
+        fun destaparLaCima(indice: Int) {
+            val frasco = frascos[indice]
+            if (frasco.isEmpty()) return
+            val cima = frasco.last()
+            if (cima.isHidden || cima.isFrozen) {
+                frascos[indice][frasco.lastIndex] = cima.copy(isHidden = false, isFrozen = false)
+            }
+        }
+
         fun verter(desde: Int, hacia: Int, cuanto: Int) {
             repeat(cuanto) {
                 frascos[hacia].add(frascos[desde].removeAt(frascos[desde].lastIndex))
             }
+            // El motor destapa la cima nueva de los dos frascos despues de cada
+            // vertido. Sin esto el reparto dejaba frascos con la cima tapada y se
+            // quedaba sin jugadas donde el motor seguiria teniendo.
+            destaparLaCima(desde)
+            destaparLaCima(hacia)
             movimientos.add(desde to hacia)
             abrirSellados()
         }
 
-        var pasos = 0
-        while (pasos++ < MAX_PASOS_REPARTO) {
-            // Los frascos de hierba van primero: vacios, o de una sola hierba.
-            val otrosListos = frascos.indices.all { it == teapotIndex || terminado(it) }
-            // Meta del motor: frasco vacio, o lleno y de una sola hierba; y la
-            // tetera con la receta exacta.
-            val teteraLlena = teapotIndex == null || recipe == null ||
-                frascos[teapotIndex].map { it.herb } == recipe
-            if (otrosListos && teteraLlena) return movimientos
+        // Manera de recorrer los frascos en esta pasada: en orden, al reves o
+        // barajados. El reparto prueba la primera jugada que ve, asi que el orden
+        // decide si sale del atolladero o no.
+        var estrategia = 0
+        fun enOrden(indices: List<Int>): List<Int> = when (estrategia) {
+            0 -> indices
+            1 -> indices.reversed()
+            2, 3 -> indices.shuffled(Random(estrategia.toLong() * 7919L))
+            else -> indices
+        }
 
-            val libres = jugables()
+        // Y entre los destinos validos tambien hay donde elegir: el de mas sitio
+        // (para no desperdiciar el bloque) o el de menos (para rematar el frasco).
+        fun elegirDestino(opciones: List<Int>): Int? = when (estrategia) {
+            4 -> opciones.maxByOrNull { limiteDe(it) - frascos[it].size }
+            5 -> opciones.minByOrNull { limiteDe(it) - frascos[it].size }
+            else -> opciones.firstOrNull()
+        }
+
+        // La ultima estrategia ordena todo antes de servir la tetera, que es como
+        // lo hace un jugador que va sobre seguro.
+        fun servirYa(): Boolean = estrategia != 6 ||
+            frascos.indices.all { it == teapotIndex || terminado(it) }
+
+        var pasos = 0
+        var intento = 0
+        while (pasos++ < MAX_PASOS_REPARTO) {
+            // Meta del motor: con receta, la tetera servida y el resto vacio o de
+            // un color; sin receta, todos los frascos ordenados.
+            if (frascos.indices.all { terminado(it) }) return movimientos
+
+            val libres = enOrden(jugables())
             var hecho = false
 
-            if (otrosListos) {
-                // Con los frascos ya puros se sirve la tetera: cada hierba esta
-                // arriba en algun frasco, asi que sale siempre. Servirla antes de
-                // tiempo hacia gastar capas que hacian falta para ordenar y el
-                // reparto se quedaba atascado.
-                val tetera = frascos[teapotIndex!!]
-                val faltan = recipe ?: return null
-                // Si la tetera ya esta llena y no es la receta, no hay receta que
-                // servir: no se puede pedir la hierba que le sigue, no existe hueco.
-                // Ojo con el tipo: [tetera] es una lista de JarLayer y [faltan] una de
-                // Herb. Compararlas tal cual nunca da igual (una capa no es una
-                // hierba) y el reparto daba cualquier nivel con receta por
-                // imposible, que hacia caer al generador en el nivel de reserva.
-                if (tetera.size >= faltan.size || tetera.map { it.herb } != faltan.take(tetera.size)) {
-                    return null
-                }
-                val falta = faltan[tetera.size]
+            if (teapotIndex != null && recipe != null && frascos[teapotIndex].size < recipe.size &&
+                servirYa()
+            ) {
+                // Se sirve la tetera en cuanto la hierba que toca esta arriba en
+                // algun frasco; si no la hay, se ordena hasta que salga. Servirla
+                // pronto es lo que hace el jugador, y asi el par cuenta lo que
+                // cuesta ganar de verdad.
+                // Con la tetera ya llena no se entra aqui: el nivel sigue sin
+                // estar terminado (queda ordenar el resto) y lo que toca es
+                // ordenar, no dar la partida por imposible.
+                val tetera = frascos[teapotIndex]
+                // Si la tetera lleva algo que no es la receta no hay nada que
+                // servir: no existe la hierba que le toca.
+                if (tetera.map { it.herb } != recipe.take(tetera.size)) return null
+                val falta = recipe[tetera.size]
                 val origen = libres.firstOrNull { frascos[it].lastOrNull()?.herb == falta }
                 if (origen != null) {
                     verter(origen, teapotIndex, 1)
                     hecho = true
                 }
-            } else {
+            }
+            if (!hecho) {
                 // Ordenar: bloque superior a un frasco del mismo color con sitio,
                 // y si no hay sitio a un frasco vacio.
                 for (i in libres) {
                     val cuanto = bloqueSuperior(i)
                     if (cuanto == 0) continue
                     val cima = frascos[i].last().herb
-                    val destino = libres.firstOrNull { j ->
-                        j != i && frascos[j].isNotEmpty() && frascos[j].last().herb == cima &&
-                            frascos[j].size < limiteDe(j)
-                    }
+                    val destino = elegirDestino(
+                        enOrden(destinos()).filter { j ->
+                            j != i && frascos[j].isNotEmpty() && frascos[j].last().herb == cima &&
+                                frascos[j].size < limiteDe(j)
+                        }
+                    )
                     if (destino != null) {
                         // Como el motor, que vierte lo que cabe en el destino aunque
                         // el bloque sea mayor. Antes el reparto exigia que cupiera
@@ -219,7 +305,9 @@ class LevelSolver {
                     for (i in libres) {
                         val cuanto = bloqueSuperior(i)
                         if (cuanto == 0) continue
-                        val destino = libres.firstOrNull { j -> j != i && frascos[j].isEmpty() }
+                        val destino = elegirDestino(
+                            enOrden(destinos()).filter { j -> j != i && frascos[j].isEmpty() }
+                        )
                         if (destino != null) {
                             verter(i, destino, cuanto)
                             hecho = true
@@ -228,7 +316,19 @@ class LevelSolver {
                     }
                 }
             }
-            if (!hecho) return null
+            if (!hecho) {
+                // Atascado: se empieza de nuevo con otro orden de recorrido. La
+                // misma partida con otro orden sale, y rendirse a la primera era
+                // lo que dejaba al generador sin niveles con receta en el bosque
+                // (entregaba el nivel de reserva, mucho mas plano).
+                intento++
+                if (intento >= ESTRATEGIAS_REPARTO) return null
+                estrategia = intento
+                frascos = frascosIniciales.map { it.toMutableList() }.toMutableList()
+                sellados = selladosIniciales.toMutableList()
+                movimientos = mutableListOf()
+                pasos = 0
+            }
         }
         return null
     }
@@ -277,9 +377,11 @@ class LevelSolver {
             ?: initialJars.maxOfOrNull { it.capacity }
             ?: 4
         val teapotCapacity = teapotIndex?.let { initialJars[it].capacity } ?: capacity
+        val grinderIndex = initialJars.indexOfFirst { it.isGrinder }.takeIf { it >= 0 }
         val start = State(
             jars = initialJars.map { jar -> jar.layers.map { Slot(it.herb, it.isHidden, it.isSticky) } },
-            sealed = initialJars.indices.filter { initialJars[it].isSealed }.toSet()
+            sealed = initialJars.indices.filter { initialJars[it].isSealed }.toSet(),
+            grinder = grinderIndex
         )
 
         if (teapotIndex != null && recipe != null) {
@@ -481,6 +583,8 @@ class LevelSolver {
             for (toIdx in stacks.indices) {
                 if (fromIdx == toIdx) continue
                 if (toIdx in state.sealed) continue
+                // El molinillo no es un frasco de almacen: no se vierte en el.
+                if (toIdx == state.grinder) continue
                 val dstStack = stacks[toIdx]
 
                 val amount = if (teapotIndex != null && toIdx == teapotIndex) {
@@ -518,7 +622,11 @@ class LevelSolver {
         revealTop(stacks, to)
 
         val newJars = stacks.map { it.toList() }
-        return State(newJars, unsealAfterMove(newJars, state.sealed, teapotIndex, capacity, teapotCapacity))
+        return State(
+            newJars,
+            unsealAfterMove(newJars, state.sealed, teapotIndex, capacity, teapotCapacity),
+            state.grinder
+        )
     }
 
     private fun revealTop(stacks: List<MutableList<Slot>>, index: Int) {

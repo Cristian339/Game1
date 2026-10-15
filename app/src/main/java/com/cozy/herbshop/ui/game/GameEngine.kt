@@ -135,6 +135,19 @@ class GameEngine {
             return PourResult.Invalid("La mezcla de la Tetera es definitiva: usa Deshacer si te equivocaste.")
         }
 
+        // El molinillo no guarda, transforma: admite cualquier hierba, de una en
+        // una, y la deja convertida en la siguiente del ciclo. Por eso no se le
+        // exige que la hierba coincida con lo que tenga dentro.
+        if (targetJar.isGrinder) {
+            if (sourceJar.isGrinder) {
+                return PourResult.Invalid("El molinillo no se muele a sí mismo.")
+            }
+            if (targetJar.capacity - targetJar.layers.size <= 0) {
+                return PourResult.Invalid("El molinillo ya tiene una hierba dentro.")
+            }
+            return PourResult.Success(1)
+        }
+
         if (!targetJar.isEmpty && targetJar.topHerb != herbToPour) {
             return PourResult.Invalid("Target jar contains a different herb type.")
         }
@@ -163,7 +176,13 @@ class GameEngine {
 
         val layersPoured = src.layers.takeLast(countToPour)
         val newSrcLayers = src.layers.dropLast(countToPour)
-        val newDstLayers = dst.layers + layersPoured
+        // Al molinillo no se le echa hierba: se le echa hierba y sale molida.
+        val layersToStore = if (dst.isGrinder) {
+            layersPoured.map { it.copy(herb = it.herb.molida) }
+        } else {
+            layersPoured
+        }
+        val newDstLayers = dst.layers + layersToStore
 
         val newJars = jars.toMutableList()
         newJars[sourceIndex] = src.copy(layers = newSrcLayers).revealTopLayer().unfreezeTopLayer()

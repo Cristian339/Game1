@@ -70,7 +70,15 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         // A partir de cuatro colores, tres frascos vacios se quedan cortos para
         // ordenar: el reparto no encontraba una solucion y el nivel caia al de
         // reserva. Con cuatro si sale siempre.
-        val emptyJars = if (numHerbs >= 4) 4 else 3
+        // Los frascos vacios son el espacio de maniobra: con seis colores y cuatro
+        // vacios el tablero en rueda se queda sin solucion (lo confirma tambien la
+        // busqueda completa) y el generador caia al nivel de reserva, mucho mas
+        // plano. Con uno mas sale casi siempre.
+        val emptyJars = when {
+            numHerbs >= 6 -> 5
+            numHerbs >= 4 -> 4
+            else -> 3
+        }
 
         val generated = levelGenerator.generateSolvableLevel(
             levelNumber = levelNumber,
@@ -205,9 +213,14 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
         // La tetera es obligatoria en todo nivel con receta: si el nivel no trae
         // ningún frasco vacío se añade uno (si no, la mezcla sería imposible).
+        // El molinillo se descarta aqui: tambien es un frasco vacio, y si no se
+        // excluyera la tetera acabaria siendo el molinillo.
+        val grinderIndex = level.grinderJarIndex?.takeIf { it in rawJars.indices }
         var teapotJarIndex = -1
         if (order != null) {
-            teapotJarIndex = rawJars.indexOfLast { it.isEmpty() }
+            teapotJarIndex = rawJars.indices.lastOrNull {
+                rawJars[it].isEmpty() && it != grinderIndex
+            } ?: -1
             if (teapotJarIndex < 0) {
                 rawJars.add(emptyList())
                 teapotJarIndex = rawJars.lastIndex
@@ -241,12 +254,20 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
                 )
             }
             val isTeapot = (index == teapotJarIndex)
+            val isGrinder = (index == grinderIndex)
             Jar(
                 id = index,
-                capacity = if (isTeapot) teapotCapacity else level.jarCapacity,
+                // El molinillo guarda una sola hierba: es una herramienta, no un
+                // frasco de almacen.
+                capacity = when {
+                    isGrinder -> 1
+                    isTeapot -> teapotCapacity
+                    else -> level.jarCapacity
+                },
                 layers = layers,
                 isSealed = jarIsSealed,
-                isTeapot = isTeapot
+                isTeapot = isTeapot,
+                isGrinder = isGrinder
             ).revealTopLayer().unfreezeTopLayer()
         }
     }

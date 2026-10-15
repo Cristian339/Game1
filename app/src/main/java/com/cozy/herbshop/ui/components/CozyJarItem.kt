@@ -785,8 +785,16 @@ fun CozyJarItem(
         contentAlignment = Alignment.BottomCenter
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(modifier = Modifier.width(if (jar.isTeapot) 60.dp else 38.dp).height(13.dp)) {
-                if (jar.isTeapot) drawTeapotLid() else drawCork(jar.isSealed)
+            Canvas(
+                modifier = Modifier
+                    .width(if (jar.isTeapot) 60.dp else 38.dp)
+                    .height(if (jar.isGrinder) 22.dp else 13.dp)
+            ) {
+                when {
+                    jar.isTeapot -> drawTeapotLid()
+                    jar.isGrinder -> drawGrinderLid()
+                    else -> drawCork(jar.isSealed)
+                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -932,6 +940,40 @@ fun CozyJarItem(
             }
         }
     }
+}
+
+/**
+ * Tapa del molinillo: el corcho de siempre mas una manivela encima. Tiene que
+ * verse de un vistazo que ese frasco no guarda hierba, la muele, porque su
+ * contenido es el resultado de la conversion y no lo que le echaron.
+ */
+private fun DrawScope.drawGrinderLid() {
+    val corkHeight = 13.dp.toPx()
+    val corkTop = size.height - corkHeight
+    val radius = CornerRadius(5.dp.toPx(), 5.dp.toPx())
+    val fill = Brush.verticalGradient(
+        listOf(Color(0xFFC9A227).jarLighten(0.35f), Color(0xFFBC8A5F), Color(0xFF6D4C41)),
+        startY = corkTop,
+        endY = size.height
+    )
+    drawRoundRect(
+        brush = fill,
+        topLeft = Offset(0f, corkTop),
+        size = Size(size.width, corkHeight),
+        cornerRadius = radius
+    )
+    val crankY = size.height * 0.30f
+    drawLine(
+        color = Color(0xFF9E9E9E),
+        start = Offset(size.width * 0.30f, crankY),
+        end = Offset(size.width * 0.72f, crankY),
+        strokeWidth = 2.2.dp.toPx()
+    )
+    drawCircle(
+        color = Color(0xFF795548),
+        radius = 2.6.dp.toPx(),
+        center = Offset(size.width * 0.74f, crankY)
+    )
 }
 
 private val SoftGlow = Color(0x33FFFFFF)
