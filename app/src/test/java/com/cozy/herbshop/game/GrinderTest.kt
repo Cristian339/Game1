@@ -259,4 +259,60 @@ class GrinderTest {
         }
     }
 
+    @Test
+    fun laFichaDelMapaCuentaElMolinilloYAnunciaLaNovedad() {
+        // El mapa y la partida leen la misma tabla de sectores, y el frasco de mas
+        // tiene que salir en la cuenta o la ficha mentiria. Los niveles 1-5 salen
+        // de assets/levels.json (que en un test sin contexto no se lee), asi que
+        // se miran del 6 en adelante, que es donde manda la formula.
+        val repository = LevelRepository(null)
+        val catalog = LevelCatalog(repository)
+        val fallos = mutableListOf<String>()
+        var enReserva = 0
+        (6..50).forEach { numero ->
+            val nivel = repository.getLevel(numero)
+            val jars = repository.convertToJars(nivel)
+            val info = catalog[numero]
+            val hierbasDeVerdad = jars.flatMap { jar -> jar.stack }.distinct().size
+
+            // Las cuentas de la ficha son el tope del reparto normal; el nivel de
+            // reserva trae menos hierbas, y eso vale mientras sea la excepcion:
+            // si todos los niveles cayeran ahi, la ficha no serviria de nada.
+            if (jars.size > info.jarCount) {
+                fallos.add("nivel $numero: la ficha dice ${info.jarCount} frascos y hay ${jars.size}")
+            }
+            if (hierbasDeVerdad > info.herbTypes) {
+                fallos.add(
+                    "nivel $numero: la ficha dice ${info.herbTypes} hierbas y hay $hierbasDeVerdad"
+                )
+            }
+            if (jars.size != info.jarCount || hierbasDeVerdad != info.herbTypes) enReserva++
+            // La ficha no puede anunciar un molinillo que la partida no trae, ni
+            // callarse el que trae.
+            val traeMolino = jars.any { it.isGrinder }
+            if (info.mechanics.contains("Molinillo") != traeMolino) {
+                fallos.add(
+                    "nivel $numero: la ficha dice \"${info.mechanics}\" y el molinillo " +
+                        if (traeMolino) "si esta" else "no esta"
+                )
+            }
+            // Toda novedad del sector tiene que estar en la ficha, incluido el
+            // "Todo a la vez", que se anuncia regla a regla.
+            SectorRule.forLevel(numero).novedades.forEach { novedad ->
+                if (!info.mechanics.contains(novedad)) {
+                    fallos.add("nivel $numero: la ficha se calla la novedad de su sector ($novedad)")
+                }
+            }
+        }
+        assertTrue(
+            "fichas del mapa que no cuadran con el nivel: ${fallos.take(8)}",
+            fallos.isEmpty()
+        )
+        // El tablero de reserva es la red de seguridad, no el camino: si saltara
+        // en mas de unos pocos niveles, la ficha se quedaria corta en muchos.
+        assertTrue(
+            "niveles que caen al tablero de reserva: $enReserva (esperado 4 o menos)",
+            enReserva <= 4
+        )
+    }
 }

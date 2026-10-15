@@ -30,12 +30,27 @@ data class LevelInfo(
     val hasFrozen: Boolean,
     val hasSealed: Boolean,
     /** Novedad que trae el sector del nivel. */
-    val sectorRule: SectorRule = SectorRule.NONE
+    val sectorRule: SectorRule = SectorRule.NONE,
+    /** Si las cuentas de la ficha salen del nivel tal cual (niveles fijos). */
+    val exactCounts: Boolean = false
 ) {
     /** Linea corta de mecanicas: "5 frascos · 3 hierbas · Tetera". */
     val mechanics: String
         get() {
-            val parts = mutableListOf("$jarCount frascos", "$herbTypes hierbas")
+            // Los frascos y las hierbas son el tope del reparto normal. Cuando el
+            // generador no encuentra tablero ganable entrega el de reserva, que
+            // trae menos hierbas, asi que en los niveles generados la ficha no
+            // puede prometer la cuenta exacta; en los fijos (levels.json) si.
+            val parts = mutableListOf<String>()
+            if (exactCounts) {
+                parts.add("$jarCount frascos")
+                parts.add("$herbTypes hierbas")
+            } else {
+                parts.add("hasta $jarCount frascos")
+                parts.add("hasta $herbTypes hierbas")
+            }
+            // La novedad del sector va primero: es lo que cambia como se juega.
+            parts.addAll(sectorRule.novedades)
             if (order != null) parts.add("Tetera")
             if (hasMystery) parts.add("Misterio")
             if (hasFrozen) parts.add("Congeladas")
@@ -109,15 +124,24 @@ class LevelCatalog(
             // Mismas formulas que LevelRepository.getLevel: las **[jarCount]** vacios son los
             // que deja el generador, y con receta uno de ellos es la tetera (ya
             // va en la linea de mecanicas como "Tetera").
-            herbTypes = minOf(3 + (numero / 5), 6)
+            val numHerbTypes = minOf(3 + (numero / 5), 6)
+            // El generador parte de las primeras [numHerbTypes] hierbas y anade
+            // las de la receta que falten: el tomillo del nivel 50 no esta entre
+            // las seis primeras y ocupa un frasco entero mas.
+            herbTypes = (Herb.entries.take(numHerbTypes) + order?.requiredHerbs.orEmpty())
+                .distinct().size
             // Con receta el generador anade un frasco mas, que es donde va la
-            // tetera; sin ella la tetera reutiliza una de las vacias.
-            jarCount = herbTypes + (if (herbTypes >= 4) 4 else 3) + (if (order != null) 1 else 0)
+            // tetera; sin ella la tetera reutiliza una de las vacias. Y en los
+            // sectores con molinillo hay otro frasco mas para el.
+            jarCount = herbTypes + (if (numHerbTypes >= 6) 5 else if (numHerbTypes >= 4) 4 else 3) +
+                (if (order != null) 1 else 0) +
+                (if (SectorRule.forLevel(numero).traeMolinillo) 1 else 0)
             // A partir del 3 el generador ya empieza a esconder capas, y del 5 en
-            // adelante congela y sella un frasco.
+            // adelante congela alguna. Sellados no hay: el generador no sella
+            // frascos porque con el reparto en rueda el nivel quedaria imposible.
             hasMystery = numero >= 3
             hasFrozen = numero >= 5
-            hasSealed = numero >= 4
+            hasSealed = false
         }
 
         return LevelInfo(
@@ -132,15 +156,10 @@ class LevelCatalog(
             hasMystery = hasMystery,
             hasFrozen = hasFrozen,
             hasSealed = hasSealed,
-            // La regla del sector se deduce con la misma cuenta que usa el
-            // generador, para que el mapa y la partida no se contradigan.
-            sectorRule = when {
-                numero in 1..10 -> SectorRule.NONE
-                numero in 11..20 -> SectorRule.GRINDER
-                numero in 21..30 -> SectorRule.MOVE_LIMIT
-                numero in 31..40 -> SectorRule.STICKY
-                else -> SectorRule.ALL
-            }
+            // La regla del sector sale de la tabla unica, la misma que lee el
+            // generador: el mapa no puede anunciar algo que la partida no traiga.
+            sectorRule = SectorRule.forLevel(numero),
+            exactCounts = predefined != null
         )
     }
 }
