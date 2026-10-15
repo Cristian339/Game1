@@ -59,6 +59,10 @@ data class GameUiState(
     val rewardRecipe: Int = 0,
     val showRecipeCelebration: Boolean = false,
     val pendingActions: List<Int> = emptyList(),
+    /** Hierbas secretas ya encontradas en otras partidas. */
+    val foundSecrets: Set<String> = emptySet(),
+    /** Hierba secreta recien destapada, para celebrarla un momento. */
+    val foundSecret: Herb? = null,
     /**
      * Jugadas de la solucion con la que el generador comprobo el nivel. Es el
      * par: la referencia para la chapa de "en par". Null si el nivel vino de
@@ -265,6 +269,18 @@ class GameEngine {
         return jars.map { it.revealTopLayer() }
     }
 
+    /**
+     * Hierbas secretas que el jugador tiene a la vista: las capas secretas ya
+     * destapadas. La puerta esconde una en un frasco tapado, y hasta que no se
+     * destapa no entra al herbario; por eso el nivel tampoco se termina con capas
+     * por destapar.
+     */
+    fun visibleSecrets(jars: List<Jar>): List<Herb> =
+        jars.flatMap { jar -> jar.layers }
+            .filter { capa -> !capa.isHidden && capa.herb.esSecreta }
+            .map { capa -> capa.herb }
+            .distinct()
+
     fun checkLevelCompleted(
         jars: List<Jar>,
         customerOrder: CustomerOrder? = null,
@@ -311,6 +327,10 @@ class GameEngine {
 
         // Resto: vacío o puro (una sola hierba). Se admite frasco parcial puro
         // porque la receta consume 2+2 de dos hierbas y sobran 2 unidades.
+        //
+        // No hace falta pedir que esté todo destapado: la hierba secreta es la
+        // única de su color, así que su frasco solo puede terminar vacío o con
+        // ella sola, y para eso hay que quitarle lo de encima (que la destapa).
         val remainingJars = jars.filter { it.id != orderJar.id }
         return remainingJars.all { jar ->
             jar.isEmpty || jar.layers.all { it.herb == jar.layers.first().herb }

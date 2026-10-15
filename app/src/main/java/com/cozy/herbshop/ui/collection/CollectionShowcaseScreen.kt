@@ -161,7 +161,7 @@ fun CollectionShowcaseScreen(
 
             // Balda 1 (apoya en el listón del 42 %)
             HerbRow(
-                herbs = Herb.entries.take(3),
+                herbs = Herb.delReparto.take(3),
                 unlockedHerbs = unlockedHerbs,
                 onHerbClick = onHerbClick,
                 onSlotClick = onSlotClick,
@@ -172,7 +172,7 @@ fun CollectionShowcaseScreen(
 
             // Balda 2 (listón del 55 %)
             HerbRow(
-                herbs = Herb.entries.drop(3).take(3),
+                herbs = Herb.delReparto.drop(3).take(3),
                 unlockedHerbs = unlockedHerbs,
                 onHerbClick = onHerbClick,
                 onSlotClick = onSlotClick,
@@ -183,7 +183,7 @@ fun CollectionShowcaseScreen(
 
             // Balda 3 (listón del 66 %)
             HerbRow(
-                herbs = Herb.entries.drop(6),
+                herbs = Herb.delReparto.drop(6),
                 unlockedHerbs = unlockedHerbs,
                 onHerbClick = onHerbClick,
                 onSlotClick = onSlotClick,

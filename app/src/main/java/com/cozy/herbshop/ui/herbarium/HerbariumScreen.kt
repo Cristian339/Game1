@@ -68,6 +68,7 @@ fun HerbariumScreen(
     onShopClicked: () -> Unit = {}
 ) {
     val unlockedHerbsSet by repository.unlockedHerbsFlow.collectAsState(initial = emptySet())
+    val secretosSet by repository.secretIngredientsFlow.collectAsState(initial = emptySet())
     var selectedHerb by remember { mutableStateOf<Herb?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -176,17 +177,85 @@ fun HerbariumScreen(
                     )
                 }
             )
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { AudioHub.sound.playTab(); selectedTab = 2 },
+                text = {
+                    Text(
+                        "✨ Secretos",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (selectedTab == 0) {
+        if (selectedTab == 2) {
+            // Hierbas secretas: una por puerta, escondidas en un frasco al azar.
+            // Hasta que el jugador no las destapa en la partida no se ven.
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(Herb.secretas) { secreta ->
+                    val encontrada = secreta.id in secretosSet
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (encontrada) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        border = BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = if (encontrada) 0.20f else 0.12f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = if (encontrada) secreta.symbol else "❓", fontSize = 28.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (encontrada) secreta.displayName else "Hierba secreta",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (encontrada) {
+                                        secreta.description
+                                    } else {
+                                        "Escondida en un frasco de la puerta ${secreta.gate}: " +
+                                            "destápala en la partida para que entre al herbario."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                                )
+                            }
+                            if (encontrada) {
+                                Text(text = "✨", fontSize = 22.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (selectedTab == 0) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(Herb.entries) { herb ->
+                items(Herb.delReparto) { herb ->
                     val isUnlocked = herb.id in unlockedHerbsSet
 
                     Card(

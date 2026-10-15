@@ -388,6 +388,13 @@ fun GameScreen(
                 )
             }
 
+            uiState.foundSecret?.let { secreta ->
+                SecretFoundBanner(
+                    herb = secreta,
+                    onDismiss = { viewModel.dismissSecretFound() }
+                )
+            }
+
             uiState.hintMove?.let { (from, to) ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -1274,6 +1281,47 @@ private fun RecipeProgressCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = onContainer,
                     maxLines = 2
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Aviso de hierba secreta encontrada. Se va solo a los pocos segundos y deja la
+ * ficha en el herbario, que es donde queda el recuerdo.
+ */
+@Composable
+private fun SecretFoundBanner(herb: Herb, onDismiss: () -> Unit) {
+    LaunchedEffect(herb.id) {
+        delay(3400)
+        onDismiss()
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = herb.symbol, style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "¡Hierba secreta encontrada!",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = "${herb.displayName} ya está en tu herbario",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f)
                 )
             }
         }

@@ -11,7 +11,14 @@ enum class Herb(
     val origin: String,
     val symbol: String,
     val colorHex: String,
-    val defaultColor: Color
+    val defaultColor: Color,
+    /**
+     * Puerta en la que se esconde esta hierba, o null si es una hierba del
+     * reparto. Las secretas no entran en el reparto ni en el ciclo del molinillo:
+     * van tapadas en un frasco de su puerta y cuentan como encontradas en cuanto
+     * el jugador las destapa.
+     */
+    val gate: Int? = null
 ) {
     CHAMOMILE("chamomile", "Manzanilla", "Matricaria chamomilla", "Relajante e infusión dorada con suaves flores blancas.", "Dulce, floral y manzana", "Europa y Asia Central", "🌼", "#E6C200", Color(0xFFFBC02D)),
     LAVENDER("lavender", "Lavanda", "Lavandula angustifolia", "Flores violetas aromáticas para la calma profunda.", "Fresco, floral y herbáceo", "Región Mediterránea", "🪻", "#8E24AA", Color(0xFFAB47BC)),
@@ -20,20 +27,68 @@ enum class Herb(
     HIBISCUS("hibiscus", "Flor de Jamaica", "Hibiscus sabdariffa", "Pétalos rojizos intensos de sabor cítrico y refrescante.", "Cítrico, afrutado y ácido", "África Tropical", "🌺", "#C2185B", Color(0xFFE91E63)),
     CINNAMON("cinnamon", "Canela", "Cinnamomum verum", "Corteza aromática cálida con tonos terrosos y especiados.", "Cálido, especiado y dulce", "Sri Lanka", "🪵", "#8D6E63", Color(0xFFA1887F)),
     CALENDULA("calendula", "Caléndula", "Calendula officinalis", "Flores anaranjadas luminosas llena de vitalidad.", "Suave, ligeramente amargo", "Sur de Europa", "🌸", "#F57C00", Color(0xFFFF9800)),
-    THYME("thyme", "Tomillo", "Thymus vulgaris", "Pequeñas hojas herbales y aromáticas de monte.", "Herbal silvestre y picante", "Mediterráneo Occidental", "🌱", "#558B2F", Color(0xFF8BC34A));
+    THYME("thyme", "Tomillo", "Thymus vulgaris", "Pequeñas hojas herbales y aromáticas de monte.", "Herbal silvestre y picante", "Mediterráneo Occidental", "🌱", "#558B2F", Color(0xFF8BC34A)),
+
+    // Secretas: una por puerta, al final del enum porque el generador y el mapa
+    // toman las primeras (las del reparto) y asi no hay que excluirlas a mano.
+    DAWN_FLOWER(
+        "dawnflower", "Flor de Alba", "Ipomoea matutina",
+        "Abre con los primeros rayos y huele a hierba mojada.", "Fresco, verde y florido",
+        "La huerta al amanecer", "🌅", "#F06292", Color(0xFFF06292), gate = 10
+    ),
+    CRYSTAL_ORCHID(
+        "orchid", "Orquídea de Cristal", "Orchis vitrea",
+        "Sus pétalos parecen vidrio empañado.", "Limpio, mineral y dulce",
+        "El invernadero", "🔮", "#4DD0E1", Color(0xFF4DD0E1), gate = 20
+    ),
+    MIDNIGHT_JASMINE(
+        "jasmine", "Jazmín de Medianoche", "Jasminum nocturnum",
+        "Perfuma la tienda entera cuando cae la noche.", "Dulce, intenso y embriagador",
+        "Los tejados del pueblo", "🌙", "#5C6BC0", Color(0xFF5C6BC0), gate = 30
+    ),
+    GLOWING_MOSS(
+        "glowingmoss", "Musgo Luminoso", "Bryum lucens",
+        "Brilla suave entre la hojarasca del bosque viejo.", "Húmedo, terroso y fresco",
+        "El bosque", "🍄", "#C0CA33", Color(0xFFC0CA33), gate = 40
+    ),
+    AUTUMN_SAFFRON(
+        "saffron", "Azafrán de Otoño", "Crocus autumnale",
+        "Se recoge en una sola semana del año, al caer la hoja.", "Cálido, dorado y especiado",
+        "Los prados de otoño", "🍁", "#D84315", Color(0xFFD84315), gate = 50
+    );
+
+    /** Si es una hierba del reparto o una de las secretas que esconden las puertas. */
+    val esSecreta: Boolean get() = gate != null
 
     companion object {
         fun fromId(id: String): Herb {
             return entries.find { it.id.equals(id, ignoreCase = true) } ?: CHAMOMILE
         }
+
+        /** Las hierbas del reparto, sin las secretas. */
+        val delReparto: List<Herb> by lazy { entries.filter { !it.esSecreta } }
+
+        /** Las secretas que esconden las puertas, en orden de sector. */
+        val secretas: List<Herb> by lazy { entries.filter { it.esSecreta } }
+
+        /** La hierba secreta que esconde una puerta, o null si esa puerta no trae. */
+        fun secretaDePuerta(gate: Int): Herb? = entries.firstOrNull { it.gate == gate }
     }
 
     /**
      * Lo que sale al pasar esta hierba por el molinillo: la siguiente del ciclo,
      * dando la vuelta al final. Es la unica regla de conversion del juego, y esta
      * aqui para que el motor, el solver y el generador no puedan discrepar.
+     *
+     * El ciclo solo da vueltas entre las hierbas del reparto: una secreta muele a
+     * la primera del ciclo, que es lo que sale si se cuela en el mortero.
      */
-    val molida: Herb get() = entries[(ordinal + 1) % entries.size]
+    val molida: Herb
+        get() {
+            val ciclo = delReparto
+            val puesto = ciclo.indexOf(this)
+            return ciclo[if (puesto < 0) 0 else (puesto + 1) % ciclo.size]
+        }
 }
 
 data class JarLayer(

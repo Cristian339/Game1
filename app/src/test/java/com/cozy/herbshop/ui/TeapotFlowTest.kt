@@ -255,7 +255,7 @@ class TeapotFlowTest {
             recipes.forEach { (levelNumber, recipe) ->
                 val level = generator.generateSolvableLevel(
                     levelNumber = levelNumber,
-                    numHerbTypes = minOf(3 + levelNumber / 3, Herb.entries.size),
+                    numHerbTypes = minOf(3 + levelNumber / 3, Herb.delReparto.size),
                     emptyJars = 2,
                     jarCapacity = 4,
                     random = kotlin.random.Random(round * 100L + levelNumber),

@@ -105,18 +105,26 @@ class GrinderTest {
     fun elMolinilloSiempreMueleEnElMismoSentidoYCierraElCiclo() {
         // El ciclo no puede dejar ninguna hierba sin molida: la ultima vuelve a
         // la primera, o el nivel se quedaria sin salida.
-        Herb.entries.forEach { herb ->
+        Herb.delReparto.forEach { herb ->
             assertTrue(
                 "la molida de ${herb.id} deberia ser otra hierba",
                 herb.molida != herb
             )
         }
-        val moliendas = Herb.entries.map { it.molida }
+        val moliendas = Herb.delReparto.map { it.molida }
         assertEquals(
             "el ciclo no puede repetir dos veces el mismo destino",
-            Herb.entries.size,
+            Herb.delReparto.size,
             moliendas.distinct().size
         )
+        // Las secretas no entran en el ciclo: si una cae en el mortero sale a una
+        // hierba del reparto, nunca a otra secreta ni a si misma.
+        Herb.entries.filter { it.esSecreta }.forEach { secreta ->
+            assertTrue(
+                "la secreta ${secreta.id} deberia molerse en una hierba del reparto",
+                secreta.molida in Herb.delReparto
+            )
+        }
     }
 
     @Test
@@ -269,6 +277,7 @@ class GrinderTest {
         val catalog = LevelCatalog(repository)
         val fallos = mutableListOf<String>()
         var enReserva = 0
+        val reserva = mutableListOf<Int>()
         (6..50).forEach { numero ->
             val nivel = repository.getLevel(numero)
             val jars = repository.convertToJars(nivel)
@@ -286,7 +295,10 @@ class GrinderTest {
                     "nivel $numero: la ficha dice ${info.herbTypes} hierbas y hay $hierbasDeVerdad"
                 )
             }
-            if (jars.size != info.jarCount || hierbasDeVerdad != info.herbTypes) enReserva++
+            if (jars.size != info.jarCount || hierbasDeVerdad != info.herbTypes) {
+                enReserva++
+                reserva.add(numero)
+            }
             // La ficha no puede anunciar un molinillo que la partida no trae, ni
             // callarse el que trae.
             val traeMolino = jars.any { it.isGrinder }
@@ -311,7 +323,7 @@ class GrinderTest {
         // El tablero de reserva es la red de seguridad, no el camino: si saltara
         // en mas de unos pocos niveles, la ficha se quedaria corta en muchos.
         assertTrue(
-            "niveles que caen al tablero de reserva: $enReserva (esperado 4 o menos)",
+            "niveles que caen al tablero de reserva: $enReserva ($reserva) (esperado 4 o menos)",
             enReserva <= 4
         )
     }

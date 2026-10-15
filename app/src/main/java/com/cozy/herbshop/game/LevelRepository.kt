@@ -85,6 +85,12 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
             numHerbTypes = numHerbs,
             emptyJars = emptyJars,
             jarCapacity = jarCapacity,
+            // Semilla por nivel: el mismo nivel reparte el mismo tablero, y el mapa
+            // (que promete cuentas) y los tests pueden contar con ello. Sin esto el
+            // generador sorteaba en cada partida y un nivel podia caer al tablero
+            // de reserva en una partida y no en la siguiente. El reto diario ya
+            // tenia su propia semilla por dia.
+            random = Random(levelNumber * 7919L + 13L),
             requiredOrder = requiredOrder
         )
         return generated.copy(customerOrder = order)

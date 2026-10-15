@@ -128,12 +128,19 @@ class LevelCatalog(
             // El generador parte de las primeras [numHerbTypes] hierbas y anade
             // las de la receta que falten: el tomillo del nivel 50 no esta entre
             // las seis primeras y ocupa un frasco entero mas.
-            herbTypes = (Herb.entries.take(numHerbTypes) + order?.requiredHerbs.orEmpty())
+            val hierbasBase = (Herb.delReparto.take(numHerbTypes) + order?.requiredHerbs.orEmpty())
                 .distinct().size
+            // Las puertas esconden ademas su hierba secreta en un frasco, tapada: al
+            // jugador le aparece una hierba mas en la partida.
+            herbTypes = hierbasBase + (if (LevelRepository.isGateLevel(numero)) 1 else 0)
+            // Pero la secreta no trae un frasco mas: sustituye una capa, asi que el
+            // tablero trae exactamente las mismas capas (y los mismos frascos) que
+            // tendria sin ella. Contarla aqui ponia un frasco de mas en las puertas.
+            //
             // Con receta el generador anade un frasco mas, que es donde va la
             // tetera; sin ella la tetera reutiliza una de las vacias. Y en los
             // sectores con molinillo hay otro frasco mas para el.
-            jarCount = herbTypes + (if (numHerbTypes >= 6) 5 else if (numHerbTypes >= 4) 4 else 3) +
+            jarCount = hierbasBase + (if (numHerbTypes >= 6) 5 else if (numHerbTypes >= 4) 4 else 3) +
                 (if (order != null) 1 else 0) +
                 (if (SectorRule.forLevel(numero).traeMolinillo) 1 else 0)
             // A partir del 3 el generador ya empieza a esconder capas, y del 5 en

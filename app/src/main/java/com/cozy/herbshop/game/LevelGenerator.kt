@@ -50,7 +50,7 @@ class LevelGenerator(
         // Toda hierba de la receta tiene que existir en el nivel: si el nivel usa
         // pocas especies, se añaden las que falten para que la receta sea posible.
         val availableHerbs = buildList {
-            addAll(Herb.entries.take(numHerbTypes))
+            addAll(Herb.delReparto.take(numHerbTypes))
             requiredHerbs.forEach { if (!contains(it)) add(it) }
         }
         // Con receta hace falta un frasco vacío extra: será la tetera.
@@ -67,6 +67,10 @@ class LevelGenerator(
         // El molinillo es del sector del invernadero, y en el ultimo sector van
         // todas las novedades juntas.
         val conMolinillo = SectorRule.forLevel(levelNumber).traeMolinillo
+        // La puerta esconde su hierba secreta dentro de un frasco, tapada, asi que
+        // el jugador la encuentra al destaparla. Se coloca antes de validar el
+        // nivel para que el par y la pista cuenten con ella.
+        val secreto = Herb.secretaDePuerta(levelNumber)
 
         // Primero se prueba con la mezcla de siempre y, si el solver no llega,
         // se va bajando. Cada capa de menos aleja el nivel de ser irresoluble.
@@ -76,7 +80,7 @@ class LevelGenerator(
             // muchos repartos sale mucho mas barato que acabar en el nivel de
             // reserva, que es un puzle mucho mas plano.
             for (intento in 1..80) {
-                val solvedStacks = repartirCapas(
+                val repartidas = repartirCapas(
                     herbs = availableHerbs,
                     jarCapacity = jarCapacity,
                     emptyJars = emptyJars + extraEmptyForTeapot,
@@ -84,6 +88,7 @@ class LevelGenerator(
                     fraccionMezcla = mezcla,
                     random = random
                 )
+                val solvedStacks = conSecreto(repartidas, secreto, random)
                 val teapotIndex = if (extraEmptyForTeapot == 1) solvedStacks.lastIndex else -1
 
                 // El molinillo se anade como un frasco vacio mas, al final, y solo
@@ -112,8 +117,10 @@ class LevelGenerator(
                         // su cima tiene que quedar a la vista o el frasco queda
                         // inservible y la solucion del reparto seria ilegal.
                         val esFondoSellado = index == sealedJarIndex && layerIndex == 0
-                        val isMystery = shouldAddMystery && !isTop && !esFondoSellado &&
-                            random.nextFloat() < 0.18f
+                        // La secreta va siempre tapada y nunca en la cima (la coloca
+                        // conSecreto), asi que se ve como un misterio mas.
+                        val isMystery = herb.esSecreta ||
+                            (shouldAddMystery && !isTop && !esFondoSellado && random.nextFloat() < 0.18f)
                         // Congelada: una capa de dentro, no la cima. Congelar la
                         // cima no servia de nada (el motor descongela las cimas al
                         // empezar y al verter, asi que el jugador no la veia nunca);
@@ -193,7 +200,14 @@ class LevelGenerator(
         }
 
         return createFallbackLevel(levelNumber, availableHerbs, jarCapacity, emptyJars + extraEmptyForTeapot, requiredOrder) { herbs, cap, order, intento ->
-            fallbackJars(herbs, cap, emptyJars, order, Random(levelNumber * 31 + herbs.size + intento * 977))
+            val repartidas = fallbackJars(
+                herbs, cap, emptyJars, order,
+                Random(levelNumber * 31 + herbs.size + intento * 977)
+            )
+            conSecretoEnLosFrascos(
+                repartidas, secreto,
+                Random(levelNumber * 31 + 13 + intento * 977)
+            )
         }
     }
 
@@ -329,6 +343,57 @@ private fun repartirCapas(
      * todas las hierbas no sirve, se reduce a las hierbas de la receta: así no hay
      * nada que tape los frascos que hay que usar.
      */
+    /**
+     * Esconde la hierba secreta de la puerta en un frasco al azar.
+     *
+     * Sustituye una capa de dentro (nunca la cima, que se veria) por la secreta:
+     * el nivel trae las mismas capas que traia, sigue siendo ganable con ella
+     * dentro y el jugador la encuentra al destapar el frasco. La tetera y el
+     * molinillo no son frascos de almacen y no entran.
+     */
+    private fun conSecreto(
+        stacks: List<MutableList<Herb>>,
+        secreto: Herb?,
+        random: Random
+    ): List<MutableList<Herb>> {
+        if (secreto == null) return stacks
+        val candidatos = stacks.indices.filter { stacks[it].size >= 2 }
+        if (candidatos.isEmpty()) return stacks
+        val elegido = candidatos.random(random)
+        val donde = random.nextInt(stacks[elegido].size - 1)
+        return stacks.mapIndexed { index, capas ->
+            if (index != elegido) capas
+            else capas.toMutableList().also { it[donde] = secreto }
+        }
+    }
+
+    /** Igual que [conSecreto], para los frascos ya montados del nivel de reserva. */
+    private fun conSecretoEnLosFrascos(jars: List<Jar>, secreto: Herb?, random: Random): List<Jar> {
+        if (secreto == null) return jars
+        val candidatos = jars.indices.filter { i ->
+            !jars[i].isTeapot && !jars[i].isGrinder && jars[i].layers.size >= 2
+        }
+        if (candidatos.isEmpty()) return jars
+        val elegido = candidatos.random(random)
+        val donde = random.nextInt(jars[elegido].layers.size - 1)
+        return jars.mapIndexed { index, jar ->
+            if (index != elegido) jar
+            else jar.copy(
+                layers = jar.layers.mapIndexed { capa, layer ->
+                    if (capa != donde) layer else JarLayer(secreto, isHidden = true)
+                }
+            )
+        }
+    }
+
+    /** La capa tal y como la lee [LevelRepository.convertToJars]. */
+    private fun JarLayer.idParaElNivel(): String = buildString {
+        if (isSticky) append("sticky:")
+        if (isFrozen) append("frozen:")
+        if (isHidden) append("?")
+        append(herb.id)
+    }
+
     private fun createFallbackLevel(
         levelNumber: Int,
         herbs: List<Herb>,
@@ -378,7 +443,7 @@ private fun repartirCapas(
                     return GameLevel(
                         levelNumber = levelNumber,
                         jarCapacity = jarCapacity,
-                        jars = jars.map { jar -> jar.layers.map { it.herb.id } },
+                        jars = jars.map { jar -> jar.layers.map { it.idParaElNivel() } },
                         parMoves = solucion.size,
                         sectorRule = SectorRule.forLevel(levelNumber),
                         grinderJarIndex = if (conMolinillo) jars.lastIndex else null
@@ -402,7 +467,7 @@ private fun repartirCapas(
         return GameLevel(
             levelNumber = levelNumber,
             jarCapacity = jarCapacity,
-            jars = safe.map { jar -> jar.layers.map { it.herb.id } },
+            jars = safe.map { jar -> jar.layers.map { it.idParaElNivel() } },
             parMoves = solver.repartirYResolver(safe, requiredOrder)?.size,
             sectorRule = SectorRule.forLevel(levelNumber),
             grinderJarIndex = if (conMolinillo) safe.lastIndex else null

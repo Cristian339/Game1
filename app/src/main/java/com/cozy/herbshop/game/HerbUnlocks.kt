@@ -17,7 +17,7 @@ object HerbUnlocks {
 
     /** Primera hierba que todavia le falta al jugador. */
     fun nextLocked(unlocked: Set<String>): Herb? =
-        Herb.entries.firstOrNull { it.id !in unlocked }
+        Herb.delReparto.firstOrNull { it.id !in unlocked }
 
     /**
      * Hierba que otorga cada puerta, leyendo las puertas de izquierda a derecha.

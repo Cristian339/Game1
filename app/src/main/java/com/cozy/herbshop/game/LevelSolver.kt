@@ -247,10 +247,41 @@ class LevelSolver {
 
         var pasos = 0
         var intento = 0
+        // Guarda contra dar vueltas: el reparto es voraz y no mira atras, asi que
+        // puede mecer el mismo bloque de un frasco a otro las 600 jugadas y darse
+        // por vencido con un nivel que tiene salida (y encima sin llegar a probar
+        // los otros ordenes, porque el bucle acababa por presupuesto). Si vuelve a
+        // un estado que ya ha visto, se trata como atasco y se cambia de orden.
+        val vistos = mutableSetOf<String>()
+        fun firma(): String = buildString {
+            frascos.forEach { frasco ->
+                frasco.forEach { capa ->
+                    append(capa.herb.id)
+                    if (capa.isHidden) append('?')
+                    if (capa.isFrozen) append('f')
+                    if (capa.isSticky) append('s')
+                    append('.')
+                }
+                append('|')
+            }
+            sellados.forEach { if (it) append('X') }
+        }
         while (pasos++ < MAX_PASOS_REPARTO) {
             // Meta del motor: con receta, la tetera servida y el resto vacio o de
             // un color; sin receta, todos los frascos ordenados.
             if (frascos.indices.all { terminado(it) }) return movimientos
+
+            if (!vistos.add(firma())) {
+                intento++
+                if (intento >= ESTRATEGIAS_REPARTO) return null
+                estrategia = intento
+                frascos = frascosIniciales.map { it.toMutableList() }.toMutableList()
+                sellados = selladosIniciales.toMutableList()
+                movimientos = mutableListOf()
+                pasos = 0
+                vistos.clear()
+                continue
+            }
 
             val libres = enOrden(jugables())
             var hecho = false

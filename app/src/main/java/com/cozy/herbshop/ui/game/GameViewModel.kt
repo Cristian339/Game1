@@ -302,6 +302,11 @@ fun loadLevel(levelNumber: Int) {
                     val teapot = newJars.firstOrNull { it.isTeapot }
                     val wasBrewed = stateNow.teapotBrewed
 
+                    // La hierba secreta de la puerta: en cuanto se destapa entra al
+                    // herbario. Se mira el tablero entero, que el vertido destapa la
+                    // cima del origen y la del destino.
+                    val secretoNuevo = anotarSecretos(newJars)
+
                     // Fase 2: el líquido llega al destino y el relleno aparece
                     _uiState.update {
                         it.copy(
@@ -314,8 +319,13 @@ fun loadLevel(levelNumber: Int) {
                             teapotRuined = ruined,
                             nextRecipeHerb = gameEngine.nextRecipeHerb(teapot, stateNow.customerOrder),
                             showRecipeCelebration = brewed && !wasBrewed,
+                            foundSecret = it.foundSecret ?: secretoNuevo,
                             hintMove = null
                         )
+                    }
+
+                    if (secretoNuevo != null) {
+                        soundManager?.playStingRecipe()
                     }
 
                     if (brewed && !wasBrewed) {
@@ -354,6 +364,11 @@ fun loadLevel(levelNumber: Int) {
         viewModelScope.launch {
             preferencesRepository.undoTokensFlow.collect { tokens ->
                 _uiState.update { it.copy(undoTokens = tokens) }
+            }
+        }
+        viewModelScope.launch {
+            preferencesRepository.secretIngredientsFlow.collect { secretos ->
+                _uiState.update { it.copy(foundSecrets = secretos) }
             }
         }
         HelpItem.entries.forEach { help ->
@@ -551,11 +566,27 @@ fun loadLevel(levelNumber: Int) {
         }
     }
 
+    /**
+     * Apunta las hierbas secretas que ya esten a la vista y devuelve la primera
+     * que el jugador no habia encontrado todavia. La de la puerta entra al
+     * herbario en cuanto se destapa, y hasta que no esta a la vista no cuenta.
+     */
+    private fun anotarSecretos(jars: List<Jar>): Herb? {
+        val vista = gameEngine.visibleSecrets(jars)
+            .firstOrNull { it.id !in _uiState.value.foundSecrets } ?: return null
+        viewModelScope.launch { preferencesRepository.unlockSecretIngredient(vista.id) }
+        return vista
+    }
+
+    fun dismissSecretFound() {
+        _uiState.update { it.copy(foundSecret = null) }
+    }
+
     fun dismissRecipeCelebration() {
         _uiState.update { it.copy(showRecipeCelebration = false) }
     }
 
-    private     fun onLevelCompleted() {
+    private fun onLevelCompleted() {
         viewModelScope.launch {
             val state = _uiState.value
             if (state.isZenMode) return@launch

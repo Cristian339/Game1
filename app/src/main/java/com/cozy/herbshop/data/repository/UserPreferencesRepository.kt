@@ -39,6 +39,7 @@ class UserPreferencesRepository(private val context: Context) {
         val COLORBLIND_MODE = booleanPreferencesKey("colorblind_mode")
         val AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
         val CUSTOMER_LETTERS = stringSetPreferencesKey("customer_letters")
+        val SECRET_INGREDIENTS = stringSetPreferencesKey("secret_ingredients")
         val TUTORIAL_BASIC_DONE = booleanPreferencesKey("tutorial_basic_done")
         val TUTORIAL_RECIPE_DONE = booleanPreferencesKey("tutorial_recipe_done")
         val UNDO_TOKENS = intPreferencesKey("undo_tokens")
@@ -192,6 +193,11 @@ class UserPreferencesRepository(private val context: Context) {
         prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
     }
 
+    /** Hierbas secretas que el jugador ya ha destapado en alguna puerta. */
+    val secretIngredientsFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[SECRET_INGREDIENTS] ?: emptySet()
+    }
+
     val tutorialBasicDoneFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[TUTORIAL_BASIC_DONE] ?: false
     }.distinctUntilChanged()
@@ -342,6 +348,14 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val set = prefs[CUSTOMER_LETTERS] ?: setOf("letter_clara")
             prefs[CUSTOMER_LETTERS] = set + letterId
+        }
+    }
+
+    /** Apunta una hierba secreta encontrada (una sola vez: es un conjunto). */
+    suspend fun unlockSecretIngredient(herbId: String) {
+        context.dataStore.edit { prefs ->
+            val set = prefs[SECRET_INGREDIENTS] ?: emptySet()
+            prefs[SECRET_INGREDIENTS] = set + herbId
         }
     }
 
