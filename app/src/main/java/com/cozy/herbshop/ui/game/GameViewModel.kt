@@ -248,7 +248,7 @@ fun loadLevel(levelNumber: Int) {
                 soundManager?.playJarClick()
                 // Pack ASMR Cristal Pro: timbre cristalino al elegir frasco
                 if (crystalSelectionEnabled) soundManager?.playCrystalChime()
-                _uiState.update { it.copy(selectedJarIndex = jarIndex) }
+                _uiState.update { it.copy(selectedJarIndex = jarIndex, blockedMessage = null) }
             }
         } else if (selectedIdx == jarIndex) {
             _uiState.update { it.copy(selectedJarIndex = null) }
@@ -261,7 +261,12 @@ fun loadLevel(levelNumber: Int) {
             // disponible para enmendar la ultima.
             if (currentState.atMoveLimit) {
                 soundManager?.playInvalidPour()
-                _uiState.update { it.copy(selectedJarIndex = null) }
+                _uiState.update {
+                    it.copy(
+                        selectedJarIndex = null,
+                        blockedMessage = "Has llegado al tope de jugadas. Deshaz o reinicia para seguir."
+                    )
+                }
                 return
             }
 
@@ -273,6 +278,7 @@ fun loadLevel(levelNumber: Int) {
                 _uiState.update {
                     it.copy(
                         selectedJarIndex = null,
+                        blockedMessage = null,
                         animatingPour = PourAnimation(selectedIdx, jarIndex, herbToPour, pourResult.countPoured)
                     )
                 }
@@ -373,10 +379,12 @@ fun loadLevel(levelNumber: Int) {
                 }
             } else {
                 soundManager?.playInvalidPour()
+                val motivo = (pourResult as? PourResult.Invalid)?.reason
+                    ?: "Ese vertido no se puede hacer."
                 if (!dst.isEmpty) {
-                    _uiState.update { it.copy(selectedJarIndex = jarIndex) }
+                    _uiState.update { it.copy(selectedJarIndex = jarIndex, blockedMessage = motivo) }
                 } else {
-                    _uiState.update { it.copy(selectedJarIndex = null) }
+                    _uiState.update { it.copy(selectedJarIndex = null, blockedMessage = motivo) }
                 }
             }
         }
@@ -611,6 +619,10 @@ fun loadLevel(levelNumber: Int) {
 
     fun dismissRecipeCelebration() {
         _uiState.update { it.copy(showRecipeCelebration = false) }
+    }
+
+    fun dismissBlockedMessage() {
+        _uiState.update { it.copy(blockedMessage = null) }
     }
 
     private fun onLevelCompleted() {

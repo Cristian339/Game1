@@ -86,26 +86,92 @@ private fun Color.jarDarken(factor: Float): Color = Color(
 /**
  * Agrupa las capas contiguas de la misma hierba (y mismo estado) en una sola
  * columna de liquido. Al agrupar, dos Layers iguales se ven como una unica
- * columna continua en lugar de dos bloques.
+ * columna continua en lugar de dos bloques; una capa helada o pegajosa corta el
+ * grupo para poder pintar su marca encima.
  */
 private class LiquidRun(
     val herb: Herb,
     val firstIndex: Int,
     val lastIndex: Int,
-    val hidden: Boolean
+    val hidden: Boolean,
+    val frozen: Boolean,
+    val sticky: Boolean
 )
 
 private fun List<JarLayer>.groupLiquidRuns(): List<LiquidRun> {
     val runs = mutableListOf<LiquidRun>()
     this.forEachIndexed { index, layer ->
         val last = runs.lastOrNull()
-        if (last != null && last.herb == layer.herb && last.hidden == layer.isHidden) {
-            runs[runs.size - 1] = LiquidRun(last.herb, last.firstIndex, index, last.hidden)
+        if (last != null && last.herb == layer.herb && last.hidden == layer.isHidden &&
+            last.frozen == layer.isFrozen && last.sticky == layer.isSticky
+        ) {
+            runs[runs.size - 1] = LiquidRun(
+                last.herb, last.firstIndex, index, last.hidden, last.frozen, last.sticky
+            )
         } else {
-            runs.add(LiquidRun(layer.herb, index, index, layer.isHidden))
+            runs.add(LiquidRun(layer.herb, index, index, layer.isHidden, layer.isFrozen, layer.isSticky))
         }
     }
     return runs
+}
+
+/** Costura de miel con grapas: es la marca de que esa capa hace de tope. */
+private fun DrawScope.drawStickyMark(topLeft: Offset, size: Size) {
+    val seamY = topLeft.y + size.height * 0.28f
+    drawLine(
+        color = Color(0xFF6D4C41).copy(alpha = 0.55f),
+        start = Offset(topLeft.x + size.width * 0.12f, seamY),
+        end = Offset(topLeft.x + size.width * 0.88f, seamY),
+        strokeWidth = 2.4.dp.toPx()
+    )
+    listOf(0.26f, 0.5f, 0.74f).forEach { fx ->
+        drawCircle(
+            color = Color(0xFF8D6E63).copy(alpha = 0.75f),
+            radius = 1.9.dp.toPx(),
+            center = Offset(topLeft.x + size.width * fx, seamY)
+        )
+    }
+}
+
+/** Hielo encima de una capa: bloquea el frasco entero hasta que se descongele. */
+private fun DrawScope.drawFrozenOverlay(
+    topLeft: Offset,
+    size: Size,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer
+) {
+    val corner = CornerRadius(7.dp.toPx(), 7.dp.toPx())
+    drawRoundRect(
+        color = Color(0xB3E0F7FA),
+        topLeft = topLeft,
+        size = size,
+        cornerRadius = corner
+    )
+    val iceShine = Brush.linearGradient(
+        listOf(Color.Transparent, Color.White.copy(alpha = 0.45f), Color.Transparent),
+        start = Offset(topLeft.x, topLeft.y),
+        end = Offset(topLeft.x + size.width, topLeft.y + size.height)
+    )
+    drawRoundRect(brush = iceShine, topLeft = topLeft, size = size, cornerRadius = corner)
+    for (i in 0..3) {
+        val fx = topLeft.x + size.width * (0.18f + i * 0.22f)
+        drawLine(
+            color = Color.White.copy(alpha = 0.5f),
+            start = Offset(fx, topLeft.y + 2.dp.toPx()),
+            end = Offset(fx + 6.dp.toPx(), topLeft.y + size.height - 2.dp.toPx()),
+            strokeWidth = 1.4.dp.toPx()
+        )
+    }
+    val frozenStyle = TextStyle(color = Color(0xFF0288D1), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    val layout = textMeasurer.measure("❄", frozenStyle)
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "❄",
+        style = frozenStyle,
+        topLeft = Offset(
+            x = topLeft.x + (size.width - layout.size.width) / 2f,
+            y = topLeft.y + (size.height - layout.size.height) / 2f
+        )
+    )
 }
 
 /**
@@ -120,7 +186,10 @@ private fun DrawScope.drawLiquidColumn(
     phase: Float,
     seed: Int,
     sprite: androidx.compose.ui.graphics.ImageBitmap?,
-    isTopGroup: Boolean
+    isTopGroup: Boolean,
+    sticky: Boolean = false,
+    frozen: Boolean = false,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer
 ) {
     val radius = 9.dp.toPx()
     val base = herb.defaultColor
@@ -232,6 +301,11 @@ private fun DrawScope.drawLiquidColumn(
         size = size,
         cornerRadius = CornerRadius(radius, radius)
     )
+
+    // Las marcas del sector van encima del liquido: si no, el hielo y la miel
+    // se ven como una hierba cualquiera y el jugador no sabe por que no sale.
+    if (sticky) drawStickyMark(topLeft, size)
+    if (frozen) drawFrozenOverlay(topLeft, size, textMeasurer)
 }
 
 private fun DrawScope.drawHerbLayer(
@@ -266,20 +340,7 @@ private fun DrawScope.drawHerbLayer(
     // Capa pegajosa: una costura con grapas. Es la unica pista de que esa capa
     // hace de tope, asi que tiene que verse sin tener que deducirla.
     if (layer.isSticky) {
-        val seamY = topLeft.y + size.height * 0.28f
-        drawLine(
-            color = Color(0xFF6D4C41).copy(alpha = 0.55f),
-            start = Offset(topLeft.x + size.width * 0.12f, seamY),
-            end = Offset(topLeft.x + size.width * 0.88f, seamY),
-            strokeWidth = 2.4.dp.toPx()
-        )
-        listOf(0.26f, 0.5f, 0.74f).forEach { fx ->
-            drawCircle(
-                color = Color(0xFF8D6E63).copy(alpha = 0.75f),
-                radius = 1.9.dp.toPx(),
-                center = Offset(topLeft.x + size.width * fx, seamY)
-            )
-        }
+        drawStickyMark(topLeft, size)
     }
 
     if (!layer.isHidden) {
@@ -366,38 +427,7 @@ private fun DrawScope.drawHerbLayer(
     }
 
     if (layer.isFrozen) {
-        drawRoundRect(
-            color = Color(0xB3E0F7FA),
-            topLeft = topLeft,
-            size = size,
-            cornerRadius = corner
-        )
-        val iceShine = Brush.linearGradient(
-            listOf(Color.Transparent, Color.White.copy(alpha = 0.45f), Color.Transparent),
-            start = Offset(topLeft.x, topLeft.y),
-            end = Offset(topLeft.x + size.width, topLeft.y + size.height)
-        )
-        drawRoundRect(brush = iceShine, topLeft = topLeft, size = size, cornerRadius = corner)
-        for (i in 0..3) {
-            val fx = topLeft.x + size.width * (0.18f + i * 0.22f)
-            drawLine(
-                color = Color.White.copy(alpha = 0.5f),
-                start = Offset(fx, topLeft.y + 2.dp.toPx()),
-                end = Offset(fx + 6.dp.toPx(), topLeft.y + size.height - 2.dp.toPx()),
-                strokeWidth = 1.4.dp.toPx()
-            )
-        }
-        val frozenStyle = TextStyle(color = Color(0xFF0288D1), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        val layout = textMeasurer.measure("❄", frozenStyle)
-        drawText(
-            textMeasurer = textMeasurer,
-            text = "❄",
-            style = frozenStyle,
-            topLeft = Offset(
-                x = topLeft.x + (size.width - layout.size.width) / 2f,
-                y = topLeft.y + (size.height - layout.size.height) / 2f
-            )
-        )
+        drawFrozenOverlay(topLeft, size, textMeasurer)
     }
 }
 
@@ -857,7 +887,10 @@ fun CozyJarItem(
                                 phase = liquidPhase,
                                 seed = jar.id * 31 + group.firstIndex,
                                 sprite = herbSpriteFor(group.herb),
-                                isTopGroup = group.firstIndex == groups.last().firstIndex
+                                isTopGroup = group.firstIndex == groups.last().firstIndex,
+                                sticky = group.sticky,
+                                frozen = group.frozen,
+                                textMeasurer = textMeasurer
                             )
                         }
                     }
@@ -876,6 +909,18 @@ fun CozyJarItem(
                     }
 
                     drawGlassOverlay()
+
+                    // El hielo bloquea el frasco entero, no solo la capa: se marca
+                    // el cristal completo para que no parezca que solo esa capa
+                    // esta fria y las de abajo se pueden sacar.
+                    if (jar.hasFrozen) {
+                        drawRect(color = Color(0x3381D4FA), size = size)
+                        drawRect(
+                            color = Color(0xFF4FC3F7).copy(alpha = 0.9f),
+                            size = size,
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                    }
 
                     if (jar.isSealed) {
                         drawWaxSeal()

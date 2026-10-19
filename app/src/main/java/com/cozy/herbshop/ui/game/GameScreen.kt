@@ -409,6 +409,29 @@ fun GameScreen(
                 }
             }
 
+            uiState.blockedMessage?.let { motivo ->
+                // Sin esto, un vertido rechazado solo sonaba: el jugador no sabia
+                // si el problema era el hielo, la miel o el molinillo lleno.
+                LaunchedEffect(motivo) {
+                    delay(3600)
+                    viewModel.dismissBlockedMessage()
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "🚫 $motivo",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
             if (uiState.pendingActions.isNotEmpty()) {
                 Text(
                     text = "▶ ${uiState.pendingActions.size} movimiento(s) en cola: se aplican en cuanto termine el vertido",
@@ -432,7 +455,7 @@ fun GameScreen(
                 // Rejilla fija, no perezosa. Con la perezosa los frascos se podian
                 // arrastrar al tocar el cristal, lo que movia el tablero bajo el
                 // dedo sin querer. Aqui no hay nada que desplazar: como mucho
-                // caben tres filas (11 frascos en cuatro columnas).
+                // caben tres filas (12 frascos en cuatro columnas).
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
