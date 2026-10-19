@@ -7,8 +7,11 @@ import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.JarLayer
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.InstanceCreator
 import com.google.gson.reflect.TypeToken
 import java.io.InputStreamReader
+import java.lang.reflect.Type
 import java.util.Calendar
 import kotlin.random.Random
 
@@ -25,9 +28,31 @@ class LevelRepository(
 val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
         fun isGateLevel(levelNumber: Int): Boolean = levelNumber in GATE_LEVELS
+
+        /**
+         * Gson que si pasa por el constructor de [GameLevel].
+         *
+         * Gson crea los objetos sin pasar por el constructor y solo pisa los
+         * campos que vienen en el json: los que no aparecen (`sectorRule`,
+         * `grinderJarIndex`, `parMoves`...) se quedaban en null aunque el data
+         * class declare valores por defecto. Como levels.json no trae esas
+         * claves, el primer `copy()` de un nivel fijo reventaba con
+         * NullPointerException: pulsar JUGAR en el nivel 1 cerraba la app.
+         * Con un InstanceCreator el constructor corre, asi que el json solo
+         * pisa lo que de verdad trae.
+         */
+        fun gsonDeNiveles(): Gson = GsonBuilder()
+            .registerTypeAdapter(
+                GameLevel::class.java,
+                object : InstanceCreator<GameLevel> {
+                    override fun createInstance(type: Type): GameLevel =
+                        GameLevel(levelNumber = 0, jars = emptyList())
+                }
+            )
+            .create()
     }
 
-    private val gson = Gson()
+    private val gson = gsonDeNiveles()
     private var jsonLevelsCache: List<GameLevel>? = null
 
     fun loadPredefinedLevels(): List<GameLevel> {

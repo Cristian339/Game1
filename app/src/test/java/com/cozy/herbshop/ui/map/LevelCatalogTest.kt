@@ -4,7 +4,6 @@ import com.cozy.herbshop.data.model.GameLevel
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.game.HerbUnlocks
 import com.cozy.herbshop.game.LevelRepository
-import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -111,7 +110,7 @@ class LevelCatalogTest {
         val json = File("src/main/assets/levels.json")
         assertTrue("no se encuentra levels.json (${json.absolutePath})", json.exists())
 
-        val predefined: List<GameLevel> = Gson().fromJson(json.readText(), type)
+        val predefined: List<GameLevel> = LevelRepository.gsonDeNiveles().fromJson(json.readText(), type)
         val catalogo = LevelCatalog(LevelRepository(null), totalLevels = 30, predefinedLevels = predefined)
 
         predefined.forEach { nivel ->
