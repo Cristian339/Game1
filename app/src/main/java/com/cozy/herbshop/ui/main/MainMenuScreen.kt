@@ -210,12 +210,15 @@ fun MainMenuScreen(
                         }
                     )
                 },
+                // Superado el reto de hoy el boton se apaga: solo vuelve manana.
+                enabled = !uiState.dailyChallengeDoneToday,
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
                     .height(48.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiary
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    disabledContainerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 4.dp,
@@ -223,10 +226,18 @@ fun MainMenuScreen(
                 )
             ) {
                 Text(
-                    text = "📅 Desafío Diario (+3 🌸)",
+                    text = if (uiState.dailyChallengeDoneToday) {
+                        "📅 Reto Diario hecho · vuelve mañana"
+                    } else {
+                        "📅 Desafío Diario (+3 🌸)"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiary
+                    color = if (uiState.dailyChallengeDoneToday) {
+                        MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.75f)
+                    } else {
+                        MaterialTheme.colorScheme.onTertiary
+                    }
                 )
             }
 

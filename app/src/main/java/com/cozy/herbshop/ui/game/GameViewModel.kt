@@ -47,6 +47,13 @@ class GameViewModel(
     /** Pulsaciones encoladas durante una animación de vertido. */
     private val pendingClicks = ArrayDeque<Int>()
 
+    /**
+     * Semilla del reto diario en juego. Se apunta al cargarlo, no al ganarlo:
+     * una partida que cruce la medianoche se cierra con el dia con el que se
+     * jugo, no con el que se acabo.
+     */
+    private var dailyChallengeSeed: Int? = null
+
     private fun clearPendingClicks() {
         pendingClicks.clear()
         _uiState.update { if (it.pendingActions.isEmpty()) it else it.copy(pendingActions = emptyList()) }
@@ -154,7 +161,9 @@ fun loadLevel(levelNumber: Int) {
     fun loadDailyChallenge() {
         clearPendingClicks()
         viewModelScope.launch {
-            val level = levelRepository.getDailyChallengeLevel()
+            val seed = LevelRepository.dailySeed()
+            dailyChallengeSeed = seed
+            val level = levelRepository.getDailyChallengeLevel(seed)
             val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
             val preview = previewReward(rewardIdFor(level.levelNumber, level.customerOrder?.id))
             _uiState.value = GameUiState(
@@ -598,6 +607,12 @@ fun loadLevel(levelNumber: Int) {
 
             if (state.isDailyChallenge) {
                 preferencesRepository.addStamina(3)
+                // El reto se cierra al superarlo: hasta manana no vuelve a
+                // ofrecerse, y se apunta con la semilla con la que se cargo la
+                // partida y no con la de este instante.
+                preferencesRepository.markDailyChallengeDone(
+                    dailyChallengeSeed ?: LevelRepository.dailySeed()
+                )
             }
 
             // Premio con tabla de repeticiones: 1ª +15/+50 · 2ª +5 · 3ª+ nada.

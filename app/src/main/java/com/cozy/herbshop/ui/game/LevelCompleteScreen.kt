@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cozy.herbshop.data.audio.AudioHub
 import com.cozy.herbshop.data.model.Herb
@@ -231,6 +232,8 @@ fun LevelCompleteScreen(
     parMoves: Int? = null,
     usedHint: Boolean = false,
     usedUndo: Boolean = false,
+    /** El reto diario no da "siguiente nivel": se cierra al superarlo. */
+    isDailyChallenge: Boolean = false,
     onNextLevelClicked: () -> Unit,
     onMenuClicked: () -> Unit
 ) {
@@ -302,16 +305,21 @@ fun LevelCompleteScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "¡Nivel Resuelto!",
+                    text = if (isDailyChallenge) "¡Reto Diario Superado!" else "¡Nivel Resuelto!",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.ExtraBold
                 )
 
                 Text(
-                    text = "Tu tienda de té ha florecido un poco más",
+                    text = if (isDailyChallenge) {
+                        "El reto de hoy queda cerrado: vuelve mañana por otro"
+                    } else {
+                        "Tu tienda de té ha florecido un poco más"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
                 )
 
                 if (movesCount != null && parMoves != null) {
@@ -495,24 +503,28 @@ fun LevelCompleteScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Button(
-                    onClick = {
-                        AudioHub.sound.playUiConfirm()
-                        onNextLevelClicked()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                ) {
-                    Text(
-                        text = "Siguiente Nivel",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                // El reto del dia se cierra al superarlo: no hay "siguiente
+                // nivel" que darle al jugador y no vuelve hasta manana.
+                if (!isDailyChallenge) {
+                    Button(
+                        onClick = {
+                            AudioHub.sound.playUiConfirm()
+                            onNextLevelClicked()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                    ) {
+                        Text(
+                            text = "Siguiente Nivel",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 Button(
                     onClick = {

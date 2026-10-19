@@ -30,6 +30,20 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         fun isGateLevel(levelNumber: Int): Boolean = levelNumber in GATE_LEVELS
 
         /**
+         * Semilla del reto diario: el dia del ano. Fija el tablero del dia, su
+         * receta y el id de su premio ("daily_<semilla>"), asi que tambien es
+         * lo que distingue el reto de hoy del de ayer.
+         */
+        fun dailySeed(): Int = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+
+        /**
+         * El reto de un dia no se repite al siguiente: solo vuelve con otro dia
+         * del ano. `doneDay` es la semilla apuntada al ganar (0 = nunca jugado;
+         * los dias del ano empiezan en 1).
+         */
+        fun dailyAlreadyPlayed(doneDay: Int, today: Int = dailySeed()): Boolean = doneDay == today
+
+        /**
          * Gson que si pasa por el constructor de [GameLevel].
          *
          * Gson crea los objetos sin pasar por el constructor y solo pisa los
@@ -135,12 +149,16 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         )
     }
 
-    fun getDailyChallengeLevel(): GameLevel {
-        val todaySeed = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-        val random = Random(todaySeed)
+    /**
+     * Reto del dia. La semilla entra como parametro para que la partida use
+     * siempre la misma de la jornada (y la apunte al ganar) y los tests puedan
+     * fijar un dia concreto.
+     */
+    fun getDailyChallengeLevel(seed: Int): GameLevel {
+        val random = Random(seed)
 
         val dailyOrder = CustomerOrder(
-            id = "daily_$todaySeed",
+            id = "daily_$seed",
             customerName = "Madame Flora",
             dialogue = "¡Hola querido! Preparo el Té Especial del Día.",
             recipeName = "Infusión del Día Royale",

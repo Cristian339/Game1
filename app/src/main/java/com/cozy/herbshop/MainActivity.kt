@@ -282,7 +282,11 @@ fun CozyHerbShopAppNavHost(
                     navController.navigate("game/${mainUiState.currentLevel}")
                 },
                 onDailyChallengeClicked = {
-                    navController.navigate("daily_challenge")
+                    // Con el reto de hoy ya superado el boton va apagado; la
+                    // guarda evita que un toque tardio lo vuelva a abrir.
+                    if (!mainUiState.dailyChallengeDoneToday) {
+                        navController.navigate("daily_challenge")
+                    }
                 },
                 onZenModeClicked = {
                     navController.navigate("zen_mode")
@@ -479,6 +483,7 @@ fun CozyHerbShopAppNavHost(
                 parMoves = gameState.parMoves,
                 usedHint = gameState.usedHint,
                 usedUndo = gameState.usedUndo,
+                isDailyChallenge = gameState.isDailyChallenge,
                 onNextLevelClicked = {
                     gameViewModel.resetLevelCompleted()
                     val nextLevel = levelNum + 1

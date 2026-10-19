@@ -186,7 +186,7 @@ class TeapotFlowTest {
     @Test
     fun dailyChallengeIsSolvableWithItsTeapot() {
         val repository = LevelRepository(null)
-        val level = repository.getDailyChallengeLevel()
+        val level = repository.getDailyChallengeLevel(seed = 123)
         val jars = repository.convertToJars(level)
 
         assertNotNull("el reto del día debe tener tetera", engine.findTeapotIndex(jars))

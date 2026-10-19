@@ -46,6 +46,11 @@ class UserPreferencesRepository(private val context: Context) {
         val UNDO_TOKENS = intPreferencesKey("undo_tokens")
         val UNLOCKED_ASMR_PACKS = stringSetPreferencesKey("unlocked_asmr_packs")
         val ASMR_IN_GAME_ENABLED = booleanPreferencesKey("asmr_in_game_enabled")
+        /**
+         * Dia del ano del ultimo reto diario superado. El menu lo compara con
+         * el dia de hoy: el reto ya jugado no se puede repetir.
+         */
+        val DAILY_CHALLENGE_DONE_DAY = intPreferencesKey("daily_challenge_done_day")
 
         /** Contador de usos de cada ayuda en partida (Pista, +Frasco...). */
         fun helpStockKey(helpId: String) = intPreferencesKey("help_stock_$helpId")
@@ -172,6 +177,11 @@ class UserPreferencesRepository(private val context: Context) {
 
     val completedLevelsCountFlow: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[COMPLETED_LEVELS_COUNT] ?: 0
+    }
+
+    /** Dia del ano del ultimo reto diario superado (0 = ninguno todavia). */
+    val dailyChallengeDoneDayFlow: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[DAILY_CHALLENGE_DONE_DAY] ?: 0
     }
 
     val goldLeavesFlow: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -370,6 +380,13 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val count = prefs[COMPLETED_LEVELS_COUNT] ?: 0
             prefs[COMPLETED_LEVELS_COUNT] = count + 1
+        }
+    }
+
+    /** Apunta el reto diario superado: solo vuelve a jugarse con otro dia. */
+    suspend fun markDailyChallengeDone(day: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[DAILY_CHALLENGE_DONE_DAY] = day
         }
     }
 
