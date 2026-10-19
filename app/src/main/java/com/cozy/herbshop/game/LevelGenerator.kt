@@ -30,6 +30,18 @@ class LevelGenerator(
     }
 
     /**
+     * Cuanto adorno lleva un intento de reparto: la mezcla entre frascos y si
+     * se añaden capas que cortan la rafaga (misterio, congelada, pegajosa). El
+     * generador prueba de mas a menos adorno hasta que el solver da el visto
+     * bueno. Ver [generateSolvableLevel].
+     */
+    private data class Adorno(
+        val fraccionMezcla: Double,
+        val conMisterio: Boolean,
+        val conTopes: Boolean
+    )
+
+    /**
      * Genera un nivel siempre resoluble (y con tetera si hay receta).
      *
      * Se reparte cada frasco con una hierba y se cambian unas cuantas capas de
@@ -74,8 +86,19 @@ class LevelGenerator(
 
         // Primero se prueba con la mezcla de siempre y, si el solver no llega,
         // se va bajando. Cada capa de menos aleja el nivel de ser irresoluble.
-        val mezclas = listOf(MEZCLA_BASE, MEZCLA_BASE * 0.6, MEZCLA_BASE / 3)
-        for (mezcla in mezclas) {
+        // Ademas se va bajando el adorno: el misterio y los topes (congelada,
+        // pegajosa) cortan las rafagas de vertido, y con siete u ocho hierbas y
+        // un solo frasco vacio una capa de esas basta para que el reparto no
+        // encuentre salida. Se renuncia primero a los topes y de ultimo al
+        // misterio: mejor un nivel apretado y limpio que un tablero plano.
+        val pasadas = listOf(
+            Adorno(MEZCLA_BASE, conMisterio = true, conTopes = true),
+            Adorno(MEZCLA_BASE * 0.6, conMisterio = true, conTopes = true),
+            Adorno(MEZCLA_BASE / 3, conMisterio = true, conTopes = true),
+            Adorno(MEZCLA_BASE, conMisterio = true, conTopes = false),
+            Adorno(MEZCLA_BASE, conMisterio = false, conTopes = false)
+        )
+        for (adorno in pasadas) {
             // La comprobacion es rapida (reparto sin busqueda), así que probar
             // muchos repartos sale mucho mas barato que acabar en el nivel de
             // reserva, que es un puzle mucho mas plano.
@@ -85,7 +108,7 @@ class LevelGenerator(
                     jarCapacity = jarCapacity,
                     emptyJars = emptyJars + extraEmptyForTeapot,
                     teapotIndex = if (extraEmptyForTeapot == 1) availableHerbs.size + emptyJars else -1,
-                    fraccionMezcla = mezcla,
+                    fraccionMezcla = adorno.fraccionMezcla,
                     random = random
                 )
                 val solvedStacks = conSecreto(repartidas, secreto, random)
@@ -120,12 +143,12 @@ class LevelGenerator(
                         // La secreta va siempre tapada y nunca en la cima (la coloca
                         // conSecreto), asi que se ve como un misterio mas.
                         val isMystery = herb.esSecreta ||
-                            (shouldAddMystery && !isTop && !esFondoSellado && random.nextFloat() < 0.18f)
+                            (shouldAddMystery && adorno.conMisterio && !isTop && !esFondoSellado && random.nextFloat() < 0.18f)
                         // Congelada: una capa de dentro, no la cima. Congelar la
                         // cima no servia de nada (el motor descongela las cimas al
                         // empezar y al verter, asi que el jugador no la veia nunca);
                         // una capa de dentro si corta el bloque, como la pegajosa.
-                        val isFrozen = levelNumber >= 5 && !isTop && random.nextFloat() < 0.08f
+                        val isFrozen = adorno.conTopes && levelNumber >= 5 && !isTop && random.nextFloat() < 0.08f
                         // Capa pegajosa (sector del bosque en adelante): se pega al
                         // frasco y hace de tope, asi que obliga a gastar una jugada
                         // mas. Nunca en la cima, que si se podria mover. Una de cada
@@ -133,7 +156,7 @@ class LevelGenerator(
                         // troceado que ni el reparto ni la busqueda completa
                         // encontraban salida y el generador entregaba el nivel de
                         // reserva (plano) en la mitad del sector.
-                        val isSticky = conPegajosas && !isTop && random.nextFloat() < 0.10f
+                        val isSticky = adorno.conTopes && conPegajosas && !isTop && random.nextFloat() < 0.10f
 
                         var idStr = herb.id
                         if (isMystery) idStr = "?$idStr"
@@ -199,9 +222,14 @@ class LevelGenerator(
             }
         }
 
-        return createFallbackLevel(levelNumber, availableHerbs, jarCapacity, emptyJars + extraEmptyForTeapot, requiredOrder) { herbs, cap, order, intento ->
+        return createFallbackLevel(levelNumber, availableHerbs, jarCapacity, requiredOrder) { herbs, cap, order, intento ->
+            // El nivel de reserva tambien lleva su frasco vacio de maniobra y,
+            // con receta, el suyo aparte para la tetera. Antes se pasaba solo el
+            // vacio de almacen: la tetera se comia el unico hueco y el nivel se
+            // quedaba sin sitio para mezclar (la reserva de las puertas 40 y 50
+            // salia directamente irresoluble).
             val repartidas = fallbackJars(
-                herbs, cap, emptyJars, order,
+                herbs, cap, emptyJars + extraEmptyForTeapot, order,
                 Random(levelNumber * 31 + herbs.size + intento * 977)
             )
             conSecretoEnLosFrascos(
@@ -398,7 +426,6 @@ private fun repartirCapas(
         levelNumber: Int,
         herbs: List<Herb>,
         jarCapacity: Int,
-        emptyJars: Int,
         requiredOrder: List<Herb>?,
         build: (List<Herb>, Int, List<Herb>?, Int) -> List<Jar>
     ): GameLevel {
@@ -411,15 +438,17 @@ private fun repartirCapas(
         }
         val candidates = buildList {
             add(herbs)
-            requiredOrder?.distinct()?.let { if (it.isNotEmpty() && it != herbs) add(it) }
             // Con menos hierbas el reparto es mucho mas facil de terminar, asi que
-            // se van recortando hasta que alguno sale ganable.
+            // se van recortando hasta que alguno sale ganable. Los recortes van
+            // antes que "solo las hierbas de la receta": un recorte de cinco
+            // hierbas sigue pareciendo un nivel, y el de dos colores es el ultimo
+            // que se quiere enseñar.
             recorte(4).let { if (it.isNotEmpty() && it != herbs) add(it) }
-            recorte(3).let { if (it.isNotEmpty() && it != herbs && it !in this) add(it) }
-            // El ultimo recurso se queda en dos hierbas: tres frascos de un solo
-            // color cada uno es justo lo que el jugador odia ("rojo rojo mora
-            // mora"), asi que mejor quedarse corto que entregar un tablero asi.
+            recorte(3).let { if (it.isNotEmpty() && it !in this) add(it) }
             recorte(2).let { if (it.isNotEmpty() && it !in this) add(it) }
+            // La receta a secas queda de ultimo recurso (el tablero mas plano):
+            // si nada mas valida, al menos se puede servir el pedido.
+            requiredOrder?.distinct()?.let { if (it.isNotEmpty() && it !in this) add(it) }
         }
 
         // El molinillo se anade siempre que el sector lo traiga, tambien en el

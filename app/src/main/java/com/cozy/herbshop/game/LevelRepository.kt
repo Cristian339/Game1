@@ -101,23 +101,18 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
         val numHerbs = minOf(3 + (levelNumber / 5), 6)
         val jarCapacity = 4
-        // Tres frascos vacios y no dos. Con el reparto disperso (cuatro hierbas
-        // distintas en cada frasco) dos vacios dejan el nivel justo en el limite
-        // de lo que se puede comprobar, y el generador caia al nivel de reserva
-        // muy a menudo. Con tres, casi todo sale verificable y sigue siendo
-        // puzle de verdad.
-        // A partir de cuatro colores, tres frascos vacios se quedan cortos para
-        // ordenar: el reparto no encontraba una solucion y el nivel caia al de
-        // reserva. Con cuatro si sale siempre.
-        // Los frascos vacios son el espacio de maniobra: con seis colores y cuatro
-        // vacios el tablero en rueda se queda sin solucion (lo confirma tambien la
-        // busqueda completa) y el generador caia al nivel de reserva, mucho mas
-        // plano. Con uno mas sale casi siempre.
-        val emptyJars = when {
-            numHerbs >= 6 -> 5
-            numHerbs >= 4 -> 4
-            else -> 3
-        }
+        // Un frasco vacio de almacen, mas la tetera y el molinillo cuando tocan
+        // (que son herramientas, no almacen). Antes se dejaban tres o cinco
+        // "para tener maniobra" y el jugador veia la partida llena de frascos
+        // esperando: pidio llenarlos y dejar uno. La puerta que suma a las seis
+        // especies de siempre las de su receta (la 40 y la 50) lleva un segundo
+        // vacio: con siete u ocho colores y un solo hueco el solucionador no da
+        // por bueno ningun tablero sin quitarle a la puerta el misterio y los
+        // topes de su sector, y una puerta sin su novedad no es una puerta. El
+        // generador valida cada reparto con el solver, asi que el nivel sigue
+        // siendo terminable desde la posicion en la que empieza el jugador.
+        val hierbasDelNivel = (Herb.delReparto.take(numHerbs) + requiredOrder.orEmpty()).distinct()
+        val emptyJars = if (hierbasDelNivel.size > 6) 2 else 1
 
         val generated = levelGenerator.generateSolvableLevel(
             levelNumber = levelNumber,
@@ -139,7 +134,7 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         val level = levelGenerator.generateSolvableLevel(
             levelNumber = 1,
             numHerbTypes = 3,
-            emptyJars = 2,
+            emptyJars = 1,
             jarCapacity = 4,
             random = Random.Default
         )
@@ -170,7 +165,7 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         val level = levelGenerator.generateSolvableLevel(
             levelNumber = 4,
             numHerbTypes = 4,
-            emptyJars = 2,
+            emptyJars = 1,
             jarCapacity = 4,
             random = random,
             requiredOrder = dailyOrder.requiredHerbs

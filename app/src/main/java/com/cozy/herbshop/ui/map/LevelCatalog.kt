@@ -121,9 +121,9 @@ class LevelCatalog(
             hasFrozen = capas.any { it.startsWith("frozen:") }
             hasSealed = capas.any { it.startsWith("sealed:") }
         } else {
-            // Mismas formulas que LevelRepository.getLevel: las **[jarCount]** vacios son los
-            // que deja el generador, y con receta uno de ellos es la tetera (ya
-            // va en la linea de mecanicas como "Tetera").
+            // Mismas formulas que LevelRepository.getLevel: un frasco vacio de
+            // almacen, y con receta uno mas que es la tetera (ya va en la linea
+            // de mecanicas como "Tetera").
             val numHerbTypes = minOf(3 + (numero / 5), 6)
             // El generador parte de las primeras [numHerbTypes] hierbas y anade
             // las de la receta que falten: el tomillo del nivel 50 no esta entre
@@ -137,10 +137,13 @@ class LevelCatalog(
             // tablero trae exactamente las mismas capas (y los mismos frascos) que
             // tendria sin ella. Contarla aqui ponia un frasco de mas en las puertas.
             //
-            // Con receta el generador anade un frasco mas, que es donde va la
-            // tetera; sin ella la tetera reutiliza una de las vacias. Y en los
-            // sectores con molinillo hay otro frasco mas para el.
-            jarCount = hierbasBase + (if (numHerbTypes >= 6) 5 else if (numHerbTypes >= 4) 4 else 3) +
+            // El frasco vacio de almacen es uno; con receta el generador anade uno
+            // mas, que es donde va la tetera. Y en los sectores con molinillo hay
+            // otro frasco mas para el. La puerta que suma hierbas de receta a las
+            // seis de siempre (la 40 y la 50) lleva un segundo vacio: es la misma
+            // regla que LevelRepository.getLevel.
+            val vacios = if (hierbasBase > 6) 2 else 1
+            jarCount = hierbasBase + vacios +
                 (if (order != null) 1 else 0) +
                 (if (SectorRule.forLevel(numero).traeMolinillo) 1 else 0)
             // A partir del 3 el generador ya empieza a esconder capas, y del 5 en
