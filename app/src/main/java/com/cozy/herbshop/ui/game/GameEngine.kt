@@ -22,6 +22,8 @@ data class GameUiState(
     val isLevelCompleted: Boolean = false,
     val history: List<List<Jar>> = emptyList(),
     val hintMove: Pair<Int, Int>? = null,
+    /** Motivo del ultimo vertido rechazado, para no dejar al jugador a ciegas. */
+    val blockedMessage: String? = null,
     val newlyUnlockedHerb: Herb? = null,
     /**
      * Hay algo que celebrar al ganar: una hierba nueva o una receta servida.
@@ -86,15 +88,13 @@ data class GameUiState(
     val canUndo: Boolean get() = history.isNotEmpty()
 
     /**
-     * Cuando el sector es de limite de jugadas, el tope es el par con margen.
-     * No se pierde nunca: pasado el limite no se dejan hacer mas jugadas, pero
-     * el nivel que ya esta resuelto cuenta igual.
+     * En el ultimo sector cada nivel tiene un tope de jugadas: el par con
+     * margen. No se pierde nunca: pasado el limite no se dejan hacer mas
+     * jugadas, pero el nivel que ya esta resuelto cuenta igual.
      */
-    val moveLimit: Int? get() = when (sectorRule) {
-        com.cozy.herbshop.data.model.SectorRule.MOVE_LIMIT ->
-            parMoves?.let { it + LIMIT_HEADROOM }
-        else -> null
-    }
+    val moveLimit: Int? get() = parMoves?.takeIf {
+        sectorRule.limitaJugadas
+    }?.let { it + LIMIT_HEADROOM }
 
     /** Quedan jugadas por gastar antes de tocar el limite del sector. */
     val movesLeft: Int? get() = moveLimit?.let { (it - movesCount).coerceAtLeast(0) }
@@ -111,38 +111,53 @@ class GameEngine {
 
     fun pour(sourceJar: Jar, targetJar: Jar, customerOrder: CustomerOrder? = null): PourResult {
         if (sourceJar.id == targetJar.id) {
-            return PourResult.Invalid("Source and target are the same jar.")
+            return PourResult.Invalid("Es el mismo frasco.")
         }
         if (sourceJar.isSealed) {
-            return PourResult.Invalid("Source jar is sealed.")
+            return PourResult.Invalid("Ese frasco está sellado: completa otro para abrirlo.")
         }
         if (targetJar.isSealed) {
-            return PourResult.Invalid("Target jar is sealed.")
+            return PourResult.Invalid("Ese frasco está sellado: completa otro para abrirlo.")
         }
         if (sourceJar.isEmpty) {
-            return PourResult.Invalid("Source jar is empty.")
+            return PourResult.Invalid("Ese frasco está vacío.")
+        }
+        // El molinillo tiene capacidad de una hierba: si esta lleno hay que
+        // sacarla antes de moler otra, no basta con decir "frasco lleno".
+        if (targetJar.isGrinder && targetJar.isFull) {
+            return PourResult.Invalid("El molinillo ya tiene una hierba: vacíalo antes de moler otra.")
+        }
+        if (targetJar.isTeapot && customerOrder != null && targetJar.isFull) {
+            return PourResult.Invalid("La tetera ya está llena.")
         }
         if (targetJar.isFull) {
-            return PourResult.Invalid("Target jar is full.")
+            return PourResult.Invalid("Ese frasco ya está lleno.")
+        }
+        // El hielo bloquea el frasco entero: no sale nada de el hasta que se
+        // complete otro frasco y el tablero se descongele.
+        if (sourceJar.hasFrozen) {
+            return PourResult.Invalid("El hielo bloquea el frasco: completa otro frasco para romperlo.")
+        }
+        // La miel tapa la boca del frasco. Se puede verter encima de ella con su
+        // mismo color, pero nunca sacarla.
+        if (sourceJar.topLayer?.isSticky == true) {
+            return PourResult.Invalid("La miel tapa el frasco: cúbrela con su mismo color para poder sacarla.")
         }
 
-        val herbToPour = sourceJar.topHerb ?: return PourResult.Invalid("No herb to pour.")
+        val herbToPour = sourceJar.topHerb ?: return PourResult.Invalid("Ese frasco está tapado y no se ve qué contiene.")
 
         // La tetera es el único recipiente donde se mezcla: admite cualquier
         // hierba (equivocarse cuesta un Deshacer) y se vierte de una en una, como
         // si fuera una cuchara. La mezcla, una vez empezada, es definitiva.
         if (targetJar.isTeapot && customerOrder != null) {
             if (sourceJar.isTeapot) {
-                return PourResult.Invalid("No se puede mezclar la tetera con sí misma.")
-            }
-            if (targetJar.capacity - targetJar.layers.size <= 0) {
-                return PourResult.Invalid("La Tetera ya está llena.")
+                return PourResult.Invalid("No puedes mezclar la tetera consigo misma.")
             }
             return PourResult.Success(1)
         }
 
         if (sourceJar.isTeapot) {
-            return PourResult.Invalid("La mezcla de la Tetera es definitiva: usa Deshacer si te equivocaste.")
+            return PourResult.Invalid("La mezcla de la tetera es definitiva: usa Deshacer si te equivocaste.")
         }
 
         // El molinillo no guarda, transforma: admite cualquier hierba, de una en
@@ -150,16 +165,13 @@ class GameEngine {
         // exige que la hierba coincida con lo que tenga dentro.
         if (targetJar.isGrinder) {
             if (sourceJar.isGrinder) {
-                return PourResult.Invalid("El molinillo no se muele a sí mismo.")
-            }
-            if (targetJar.capacity - targetJar.layers.size <= 0) {
-                return PourResult.Invalid("El molinillo ya tiene una hierba dentro.")
+                return PourResult.Invalid("El molinillo no puede molerse a sí mismo.")
             }
             return PourResult.Success(1)
         }
 
         if (!targetJar.isEmpty && targetJar.topHerb != herbToPour) {
-            return PourResult.Invalid("Target jar contains a different herb type.")
+            return PourResult.Invalid("Solo puedes verter sobre la misma hierba o en un frasco vacío.")
         }
 
         val availableSpace = targetJar.capacity - targetJar.layers.size
@@ -167,7 +179,7 @@ class GameEngine {
         val countToPour = minOf(availableSpace, sourceTopCount)
 
         if (countToPour <= 0) {
-            return PourResult.Invalid("No space to pour.")
+            return PourResult.Invalid("No cabe nada más en ese frasco.")
         }
 
         return PourResult.Success(countToPour)
@@ -195,8 +207,8 @@ class GameEngine {
         val newDstLayers = dst.layers + layersToStore
 
         val newJars = jars.toMutableList()
-        newJars[sourceIndex] = src.copy(layers = newSrcLayers).revealTopLayer().unfreezeTopLayer()
-        newJars[targetIndex] = dst.copy(layers = newDstLayers).revealTopLayer().unfreezeTopLayer()
+        newJars[sourceIndex] = src.copy(layers = newSrcLayers).revealTopLayer()
+        newJars[targetIndex] = dst.copy(layers = newDstLayers).revealTopLayer()
 
         val brewed = if (newJars[targetIndex].isTeapot) sealBrewedTeapot(newJars[targetIndex], customerOrder) else null
         if (brewed != null) {
@@ -246,29 +258,28 @@ class GameEngine {
 
     fun processSealedJars(jars: List<Jar>): List<Jar> {
         // "Completado" = lleno y de un solo color. Las capas ocultas o
-        // congeladas son solo una puerta visual: seVAN revelando al verter, así
-        // que no cuentan aquí (importante para que la Pista cuadre con el juego).
+        // congeladas no impiden contar ese frasco aqui: es justo lo que rompe el
+        // hielo del tablero y abre los sellos. El molinillo y la tetera no
+        // cuentan como frascos de almacen.
         val completedFilledJars = jars.count { jar ->
-            !jar.isEmpty && !jar.isTeapot && jar.isFull &&
+            !jar.isEmpty && !jar.isTeapot && !jar.isGrinder && jar.isFull &&
                 jar.layers.all { layer -> layer.herb == jar.layers.first().herb }
         }
         if (completedFilledJars == 0) return jars
 
-        val mutable = jars.toMutableList()
+        // Al completar un frasco, el calor recorre la mesa y rompe TODO el hielo.
+        // Asi el jugador no se queda con un frasco bloqueado para siempre: el
+        // hielo se encadena con el resto del nivel.
+        val mutable = jars.map { it.thaw() }.toMutableList()
         var unsealedCount = 0
-        var changed = false
         for (i in mutable.indices) {
             if (mutable[i].isTeapot) continue
             if (mutable[i].isSealed && unsealedCount < completedFilledJars) {
-                mutable[i] = mutable[i].unseal().revealTopLayer().unfreezeTopLayer()
+                mutable[i] = mutable[i].unseal().revealTopLayer()
                 unsealedCount++
-                changed = true
-            } else if (!mutable[i].isSealed && mutable[i].topLayer?.isFrozen == true) {
-                mutable[i] = mutable[i].unfreezeTopLayer()
-                changed = true
             }
         }
-        return if (changed) mutable else jars
+        return mutable
     }
 
     fun revealTopLayers(jars: List<Jar>): List<Jar> {
@@ -332,14 +343,21 @@ class GameEngine {
             ?: return false
 
         // Resto: vacío o puro (una sola hierba). Se admite frasco parcial puro
-        // porque la receta consume 2+2 de dos hierbas y sobran 2 unidades.
+        // porque la receta consume 2+2 de dos hierbas y sobran 2 unidades. El
+        // molinillo no almacena: tiene que quedar vacío, igual que en los niveles
+        // sin receta. Un frasco helado no se puede dar por bueno sin romperlo.
         //
         // No hace falta pedir que esté todo destapado: la hierba secreta es la
         // única de su color, así que su frasco solo puede terminar vacío o con
         // ella sola, y para eso hay que quitarle lo de encima (que la destapa).
         val remainingJars = jars.filter { it.id != orderJar.id }
         return remainingJars.all { jar ->
-            jar.isEmpty || jar.layers.all { it.herb == jar.layers.first().herb }
+            when {
+                jar.isGrinder -> jar.isEmpty
+                jar.isEmpty -> true
+                jar.hasFrozen -> false
+                else -> jar.layers.all { it.herb == jar.layers.first().herb }
+            }
         }
     }
 

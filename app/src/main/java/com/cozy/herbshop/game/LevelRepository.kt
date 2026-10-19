@@ -6,6 +6,7 @@ import com.cozy.herbshop.data.model.GameLevel
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.JarLayer
+import com.cozy.herbshop.data.model.SectorRule
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.InstanceCreator
@@ -99,20 +100,17 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
             return found.copy(customerOrder = order)
         }
 
-        val numHerbs = minOf(3 + (levelNumber / 5), 6)
+        val numHerbs = herbTypesForLevel(levelNumber)
         val jarCapacity = 4
         // Un frasco vacio de almacen, mas la tetera y el molinillo cuando tocan
         // (que son herramientas, no almacen). Antes se dejaban tres o cinco
         // "para tener maniobra" y el jugador veia la partida llena de frascos
-        // esperando: pidio llenarlos y dejar uno. La puerta que suma a las seis
-        // especies de siempre las de su receta (la 40 y la 50) lleva un segundo
-        // vacio: con siete u ocho colores y un solo hueco el solucionador no da
-        // por bueno ningun tablero sin quitarle a la puerta el misterio y los
-        // topes de su sector, y una puerta sin su novedad no es una puerta. El
+        // esperando: pidio llenarlos y dejar uno. A partir del sector del
+        // molinillo el nivel usa siete u ocho colores y necesita un segundo
+        // hueco para poder repartir sin romper las mecanicas del sector; el
         // generador valida cada reparto con el solver, asi que el nivel sigue
         // siendo terminable desde la posicion en la que empieza el jugador.
-        val hierbasDelNivel = (Herb.delReparto.take(numHerbs) + requiredOrder.orEmpty()).distinct()
-        val emptyJars = if (hierbasDelNivel.size > 6) 2 else 1
+        val emptyJars = emptyJarsForLevel(levelNumber)
 
         val generated = levelGenerator.generateSolvableLevel(
             levelNumber = levelNumber,
@@ -178,6 +176,45 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
     }
 
     /**
+     * Especies de reparto de un nivel, compartido por el generador y el mapa.
+     *
+     * La curva es lenta a proposito: cinco colores durante el aprendizaje, seis
+     * en el invernadero, siete en el sector del molinillo y ocho en el resto.
+     * Antes llegaba a seis en el nivel 15 y se quedaba ahi, y los niveles 30 y
+     * 40 se sentian iguales que los primeros.
+     */
+    fun herbTypesForLevel(levelNumber: Int): Int = when {
+        levelNumber <= 10 -> 5
+        levelNumber <= 20 -> 6
+        levelNumber <= 30 -> 7
+        else -> 8
+    }
+
+    /**
+     * Huecos libres que trae el nivel. Hasta seis colores basta uno; con siete u
+     * ocho el tablero necesita dos para que el solver pueda ordenarlo sin quitar
+     * las mecanicas del sector. Las herramientas no cuentan.
+     */
+    fun emptyJarsForLevel(levelNumber: Int): Int {
+        val required = orderForLevel(levelNumber)?.requiredHerbs.orEmpty()
+        val hierbas = (Herb.delReparto.take(herbTypesForLevel(levelNumber)) + required).distinct()
+        // El sector del hielo necesita dos aunque solo traiga seis colores: con
+        // un solo hueco no queda tablero que el solver pueda cerrar tras bloquear
+        // un frasco entero.
+        val sector = SectorRule.forLevel(levelNumber)
+        return if (hierbas.size > 6 || sector.traeHelados) 2 else 1
+    }
+
+    /** Frascos de almacen que vera el jugador: hierbas, huecos y herramientas. */
+    fun jarCountForLevel(levelNumber: Int): Int {
+        val required = orderForLevel(levelNumber)?.requiredHerbs.orEmpty()
+        val hierbas = (Herb.delReparto.take(herbTypesForLevel(levelNumber)) + required).distinct()
+        val teapot = if (orderForLevel(levelNumber) != null) 1 else 0
+        val grinder = if (SectorRule.forLevel(levelNumber).traeMolinillo) 1 else 0
+        return hierbas.size + emptyJarsForLevel(levelNumber) + teapot + grinder
+    }
+
+    /**
      * Receta del cliente en un nivel, sin llegar a generar el nivel. El mapa la
      * usa para enseñar qué hay que servir sin pagar una búsqueda del solver.
      */
@@ -210,42 +247,52 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
                     customerName = "Sabia Aurelia",
                     dialogue = "La canela solo se gana con paciencia… y con este té.",
                     recipeName = "Elixir de Canela Antigua",
-                    requiredHerbs = listOf(Herb.CINNAMON, Herb.CINNAMON, Herb.HIBISCUS, Herb.HIBISCUS)
+                    requiredHerbs = listOf(Herb.CINNAMON, Herb.CINNAMON, Herb.HIBISCUS, Herb.ROSEMARY)
                 )
                 40 -> CustomerOrder(
                     id = "gate_40",
                     customerName = "Jardinera Luna",
                     dialogue = "Mi caléndula es para quien domine la mezcla dorada.",
                     recipeName = "Sérum de Caléndula",
-                    requiredHerbs = listOf(Herb.CALENDULA, Herb.CALENDULA, Herb.MINT, Herb.MINT)
+                    requiredHerbs = listOf(Herb.CALENDULA, Herb.CALENDULA, Herb.MINT, Herb.LAVENDER)
                 )
                 else -> CustomerOrder(
                     id = "gate_50",
                     customerName = "Ermitaño Verde",
                     dialogue = "El tomillo silvestre premia al último maestro té.",
                     recipeName = "Bálsamo del Tomillo Silvestre",
-                    requiredHerbs = listOf(Herb.THYME, Herb.THYME, Herb.ROSEMARY, Herb.ROSEMARY)
+                    requiredHerbs = listOf(Herb.THYME, Herb.THYME, Herb.ROSEMARY, Herb.CHAMOMILE)
                 )
             }
         }
 
-        // Entre puertas: receta opcional en los niveles pares (a veces sí, a veces no)
+        // Entre puertas: receta opcional en los niveles pares (a veces sí, a veces no).
         if (levelNumber % 2 != 0) return null
 
+        // A partir de la noche las recetas dejan de ser dos colores repetidos y
+        // suman una tercera hierba: el mismo numero de unidades, mas decisiones.
         return when (levelNumber % 4) {
             0 -> CustomerOrder(
                 id = "order_$levelNumber",
                 customerName = "Abuela Clara",
                 dialogue = "Busco un té suave para descansar esta tarde...",
                 recipeName = "Infusión Dulce Calma",
-                requiredHerbs = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.LAVENDER)
+                requiredHerbs = if (levelNumber >= 30) {
+                    listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.MINT)
+                } else {
+                    listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.LAVENDER, Herb.LAVENDER)
+                }
             )
             2 -> CustomerOrder(
                 id = "order_$levelNumber",
                 customerName = "Botánico Arthur",
                 dialogue = "Necesito una mezcla estimulante para estudiar.",
                 recipeName = "Elixir de Concentración",
-                requiredHerbs = listOf(Herb.MINT, Herb.MINT, Herb.LAVENDER, Herb.LAVENDER)
+                requiredHerbs = if (levelNumber >= 30) {
+                    listOf(Herb.MINT, Herb.MINT, Herb.LAVENDER, Herb.ROSEMARY)
+                } else {
+                    listOf(Herb.MINT, Herb.MINT, Herb.LAVENDER, Herb.LAVENDER)
+                }
             )
             else -> null
         }
@@ -312,7 +359,7 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
                 isSealed = jarIsSealed,
                 isTeapot = isTeapot,
                 isGrinder = isGrinder
-            ).revealTopLayer().unfreezeTopLayer()
+            ).revealTopLayer()
         }
     }
 }

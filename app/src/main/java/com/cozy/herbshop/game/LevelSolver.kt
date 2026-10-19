@@ -25,16 +25,20 @@ import kotlin.random.Random
 class LevelSolver {
 
     /** Capa dentro de un frasco, con su estado de "misterio". */
-    data class Slot(val herb: Herb, val hidden: Boolean = false, val sticky: Boolean = false)
+    data class Slot(
+        val herb: Herb,
+        val hidden: Boolean = false,
+        val sticky: Boolean = false,
+        val frozen: Boolean = false
+    )
 
     data class State(
         val jars: List<List<Slot>>,
         val sealed: Set<Int>,
         /**
-         * Frasco que hace de molinillo, si el nivel trae uno. La busqueda no lo
-         * usa: no puede ser destino (solo admite una hierba y la transforma, y
-         * modelarlo aqui no compensa) ni origen (siempre esta vacio). Asi sus
-         * soluciones siguen siendo ejecutables tal cual en el motor.
+         * Frasco que hace de molinillo, si el nivel trae uno. La busqueda lo
+         * modela como una herramienta de una sola capa: puede recibir cualquier
+         * hierba (y la transforma en [Herb.molida]) y puede soltar lo que tiene.
          */
         val grinder: Int? = null
     )
@@ -51,18 +55,18 @@ class LevelSolver {
      * móvil (heap de 192 MB) el nivel 39 terminaba en OutOfMemoryError y se
      * caía la partida. Menos nodos, menos apuros.
      */
-    private companion object {
-        const val DEFAULT_MAX_VISITED = 60_000
+    companion object {
+        private const val DEFAULT_MAX_VISITED = 60_000
 
         /** Tope de vertidos del reparto sin busqueda, para que no se ciclie. */
-        const val MAX_PASOS_REPARTO = 600
+        private const val MAX_PASOS_REPARTO = 600
 
         /**
          * Formas de recorrer los frascos en el reparto: en orden, al reves y dos
          * barajados. El reparto es voraz, prueba la primera jugada que ve, y a
          * veces se encierra; con otro orden la misma partida sale.
          */
-        const val ESTRATEGIAS_REPARTO = 7
+        private const val ESTRATEGIAS_REPARTO = 7
     }
 
     fun isSolvable(initialJars: List<Jar>, requiredOrder: List<Herb>? = null): Boolean {
@@ -92,13 +96,14 @@ class LevelSolver {
     ): List<Pair<Int, Int>>? {
         val teapotIndex = initialJars.indexOfFirst { it.isTeapot }.takeIf { it >= 0 }
         val recipe = requiredOrder?.takeIf { it.isNotEmpty() }
-        val capacity = initialJars.filterNot { it.isTeapot }.maxOfOrNull { it.capacity } ?: 4
+        val capacity = initialJars.filterNot { it.isTeapot || it.isGrinder }
+            .maxOfOrNull { it.capacity } ?: 4
         val teapotCapacity = teapotIndex?.let { initialJars[it].capacity } ?: capacity
 
         // Las capas con su estado: no hace falta saber cuales estan escondidas, porque
-        // el motor destapa la cima de origen y destino tras cada vertido. Si se
-        // guarda la marca de pegajosa, que el reparto tiene que respetar igual que
-        // el motor.
+        // el motor destapa la cima de origen y destino tras cada vertido. Se
+        // guardan las marcas de pegajosa y helado, que el reparto tiene que
+        // respetar igual que el motor.
         val frascosIniciales = initialJars.map { jar -> jar.layers.toMutableList() }.toMutableList()
         var frascos: MutableList<MutableList<JarLayer>> = frascosIniciales.map { it.toMutableList() }.toMutableList()
         // Un frasco sellado no se puede tocar hasta que se abren otros completando
@@ -108,9 +113,10 @@ class LevelSolver {
         var movimientos = mutableListOf<Pair<Int, Int>>()
 
         // El molinillo es el unico frasco que no es un frasco: guarda una sola
-        // hierba y la transforma. El reparto no lo usa como destino (no sabria
-        // modelar la transformacion), pero si tiene que exigir que quede vacio,
-        // que es la meta del motor.
+        // hierba y la transforma. La meta exige que quede vacio, y hay niveles
+        // construidos con una hierba de mas y otra de menos: el reparto detecta
+        // ese desequilibrio y muele la que sobra para convertirla en la que
+        // falta. Sin ese plan, la partida no se podria cerrar.
         val grinderIndex = initialJars.indexOfFirst { it.isGrinder }.takeIf { it >= 0 }
 
         fun limiteDe(indice: Int): Int = when (indice) {
@@ -119,13 +125,13 @@ class LevelSolver {
             else -> capacity
         }
 
-        // Igual que el motor: de un frasco sellado o con la cima escondida o
-        // congelada no se puede verter ([GameEngine.pour] y [Jar.topCount]). Si el
-        // reparto no lo respetara, leeria jugadas que el motor rechaza.
+        // Igual que el motor: de un frasco sellado, helado o con una capa
+        // pegajosa en la cima no se puede verter.
         fun jugables(): List<Int> =
             frascos.indices.filter {
-                it != teapotIndex && !sellados[it] &&
-                    frascos[it].lastOrNull()?.let { cima -> !cima.isHidden && !cima.isFrozen } == true
+                it != teapotIndex && !sellados[it] && frascos[it].isNotEmpty() &&
+                    frascos[it].none { capa -> capa.isFrozen } &&
+                    frascos[it].last().let { cima -> !cima.isHidden && !cima.isSticky }
             }
 
         /** Destinos validos para ordenar: ni la tetera, ni el molinillo, ni un sellado. */
@@ -136,15 +142,16 @@ class LevelSolver {
         fun bloqueSuperior(indice: Int): Int {
             val frasco = frascos[indice]
             if (frasco.isEmpty()) return 0
-            // Cima escondida o congelada: el motor no deja verter de ahi, cuenta
-            // como cero.
-            if (frasco.last().isHidden || frasco.last().isFrozen) return 0
+            // Frasco helado o cima escondida/pegajosa: el motor no deja verter
+            // de ahi, cuenta como cero.
+            if (frasco.any { capa -> capa.isFrozen }) return 0
+            if (frasco.last().isHidden || frasco.last().isSticky) return 0
             val cima = frasco.last().herb
             var n = 0
             for (k in frasco.indices.reversed()) {
-                // La capa pegajosa, escondida o congelada corta el bloque, igual
-                // que en el motor: solo sale lo que hay por encima del tope.
-                val tope = frasco[k].isSticky || frasco[k].isHidden || frasco[k].isFrozen
+                // La capa pegajosa o escondida corta el bloque, igual que en el
+                // motor: solo sale lo que hay por encima del tope.
+                val tope = frasco[k].isSticky || frasco[k].isHidden
                 if (k != frasco.lastIndex && tope) break
                 if (frasco[k].herb == cima) n++ else break
             }
@@ -164,22 +171,23 @@ class LevelSolver {
             }
             val frasco = frascos[indice]
             if (frasco.isEmpty()) return true
-            // Un frasco sellado no cuenta como terminado hasta que se abre.
+            // Un frasco sellado o helado no cuenta como terminado.
             if (sellados[indice]) return false
+            if (frasco.any { it.isFrozen }) return false
             if (frasco.map { it.herb }.distinct().size > 1) return false
             // Con receta el motor admite el frasco a medias mientras sea de una
-            // sola hierba: la tetera se lleva 2+2 y lo que queda nunca llega a
-            // cuatro. Sin receta hay que llenarlo, y sin capas por destapar,
+            // sola hierba. Sin receta hay que llenarlo, y sin capas por destapar,
             // porque [Jar.isCompleted] tambien las mira.
             if (recipe != null) return true
             return frasco.size == limiteDe(indice) &&
-                frasco.all { !it.isHidden && !it.isFrozen }
+                frasco.all { !it.isHidden }
         }
 
         fun completo(indice: Int): Boolean {
-            if (indice == teapotIndex) return false
+            if (indice == teapotIndex || indice == grinderIndex) return false
             val frasco = frascos[indice]
-            return frasco.size == limiteDe(indice) && frasco.map { it.herb }.distinct().size == 1
+            return frasco.size == limiteDe(indice) &&
+                frasco.map { it.herb }.distinct().size == 1
         }
 
         fun abrirSellados() {
@@ -198,19 +206,33 @@ class LevelSolver {
             }
         }
 
-        /** Destapa y descongela la cima, como hace el motor al verter. */
+        /** Al completar un frasco se rompe todo el hielo del tablero. */
+        fun romperHielo() {
+            if (frascos.indices.none { completo(it) }) return
+            frascos.indices.forEach { i ->
+                if (frascos[i].any { it.isFrozen }) {
+                    frascos[i] = frascos[i]
+                        .map { if (it.isFrozen) it.copy(isFrozen = false) else it }
+                        .toMutableList()
+                }
+            }
+        }
+
+        /** Destapa la cima, como hace el motor al verter. */
         fun destaparLaCima(indice: Int) {
             val frasco = frascos[indice]
             if (frasco.isEmpty()) return
             val cima = frasco.last()
-            if (cima.isHidden || cima.isFrozen) {
-                frascos[indice][frasco.lastIndex] = cima.copy(isHidden = false, isFrozen = false)
+            if (cima.isHidden) {
+                frascos[indice][frasco.lastIndex] = cima.copy(isHidden = false)
             }
         }
 
         fun verter(desde: Int, hacia: Int, cuanto: Int) {
             repeat(cuanto) {
-                frascos[hacia].add(frascos[desde].removeAt(frascos[desde].lastIndex))
+                var capa = frascos[desde].removeAt(frascos[desde].lastIndex)
+                if (hacia == grinderIndex) capa = capa.copy(herb = capa.herb.molida)
+                frascos[hacia].add(capa)
             }
             // El motor destapa la cima nueva de los dos frascos despues de cada
             // vertido. Sin esto el reparto dejaba frascos con la cima tapada y se
@@ -218,8 +240,38 @@ class LevelSolver {
             destaparLaCima(desde)
             destaparLaCima(hacia)
             movimientos.add(desde to hacia)
+            romperHielo()
             abrirSellados()
         }
+
+        /**
+         * Hierba que sobra y hierba que falta en un nivel con molinillo. El
+         * generador crea ese desequilibrio a proposito (5 de A, 3 de B, con
+         * A.molida == B), y el reparto tiene que moler una A para cerrar el
+         * tablero. Sin esto el molinillo seria decorativo.
+         */
+        fun planDeMolienda(): Pair<Herb, Herb>? {
+            if (recipe != null || grinderIndex == null) return null
+            val cuenta = mutableMapOf<Herb, Int>()
+            frascos.forEachIndexed { i, capas ->
+                if (i == teapotIndex || i == grinderIndex) return@forEachIndexed
+                capas.forEach { capa -> cuenta[capa.herb] = (cuenta[capa.herb] ?: 0) + 1 }
+            }
+            return Herb.delReparto.firstNotNullOfOrNull { sobra ->
+                val falta = sobra.molida
+                val deSobra = cuenta[sobra] ?: 0
+                val deFalta = cuenta[falta] ?: 0
+                if (deSobra > 0 && deFalta > 0 &&
+                    deSobra % capacity == 1 && deFalta % capacity == capacity - 1
+                ) sobra to falta else null
+            }
+        }
+
+        val planInicial = planDeMolienda()
+        var planPendiente = planInicial
+        // El motor descongela al cargar si ya hay un frasco completo (raro, pero
+        // el nivel de reserva podria traerlo).
+        romperHielo()
 
         // Manera de recorrer los frascos en esta pasada: en orden, al reves o
         // barajados. El reparto prueba la primera jugada que ve, asi que el orden
@@ -244,6 +296,52 @@ class LevelSolver {
         // lo hace un jugador que va sobre seguro.
         fun servirYa(): Boolean = estrategia != 6 ||
             frascos.indices.all { it == teapotIndex || terminado(it) }
+
+        /** Cuantas capas seguidas de [herb] hay en la cima del frasco. */
+        fun cuantasArriba(indice: Int, herb: Herb): Int {
+            var n = 0
+            for (k in frascos[indice].indices.reversed()) {
+                if (frascos[indice][k].herb == herb) n++ else break
+            }
+            return n
+        }
+
+        /**
+         * Entre los frascos que ya tienen esa hierba arriba, el que mas capas
+         * lleva: consolidar en el frasco casi hecho es lo que hace un jugador y
+         * evita ir moviendo el mismo bloque de un lado a otro.
+         */
+        fun mejorDestinoMismoColor(opciones: List<Int>, herb: Herb): Int? =
+            opciones.maxWithOrNull(
+                compareBy({ cuantasArriba(it, herb) }, { limiteDe(it) - frascos[it].size })
+            )
+
+        /**
+         * El molinillo no es almacen: si tiene algo dentro hay que devolverlo lo
+         * antes posible. Si se deja para el final, el reparto gasta los frascos
+         * vacios ordenando y el molinillo se queda sin sitio (el nivel parecia
+         * imposible con salida).
+         */
+        fun vaciarMolinillo(): Boolean {
+            val g = grinderIndex ?: return false
+            val capas = frascos[g]
+            if (capas.isEmpty()) return false
+            val cima = capas.last()
+            if (cima.isHidden || cima.isSticky) return false
+            if (capas.any { it.isFrozen }) return false
+            val herb = cima.herb
+            val mismos = destinos().filter { j ->
+                j != g && frascos[j].isNotEmpty() && frascos[j].last().herb == herb &&
+                    frascos[j].size < limiteDe(j)
+            }
+            val destino = mejorDestinoMismoColor(mismos, herb)
+                ?: elegirDestino(
+                    enOrden(destinos()).filter { j -> j != g && frascos[j].isEmpty() }
+                )
+                ?: return false
+            verter(g, destino, 1)
+            return true
+        }
 
         var pasos = 0
         var intento = 0
@@ -278,6 +376,8 @@ class LevelSolver {
                 frascos = frascosIniciales.map { it.toMutableList() }.toMutableList()
                 sellados = selladosIniciales.toMutableList()
                 movimientos = mutableListOf()
+                planPendiente = planInicial
+                romperHielo()
                 pasos = 0
                 vistos.clear()
                 continue
@@ -286,7 +386,25 @@ class LevelSolver {
             val libres = enOrden(jugables())
             var hecho = false
 
-            if (teapotIndex != null && recipe != null && frascos[teapotIndex].size < recipe.size &&
+            // Moler es obligatorio en los niveles con desequilibrio: hay mas A
+            // que B y A.molida == B. Se hace en cuanto la A esta en la cima.
+            val plan = planPendiente
+            if (!hecho && plan != null && grinderIndex != null &&
+                frascos[grinderIndex].isEmpty()
+            ) {
+                val origen = libres.firstOrNull { frascos[it].lastOrNull()?.herb == plan.first }
+                if (origen != null) {
+                    verter(origen, grinderIndex, 1)
+                    planPendiente = null
+                    hecho = true
+                }
+            }
+
+            if (!hecho && vaciarMolinillo()) {
+                hecho = true
+            }
+
+            if (!hecho && teapotIndex != null && recipe != null && frascos[teapotIndex].size < recipe.size &&
                 servirYa()
             ) {
                 // Se sirve la tetera en cuanto la hierba que toca esta arriba en
@@ -314,12 +432,15 @@ class LevelSolver {
                     val cuanto = bloqueSuperior(i)
                     if (cuanto == 0) continue
                     val cima = frascos[i].last().herb
-                    val destino = elegirDestino(
-                        enOrden(destinos()).filter { j ->
-                            j != i && frascos[j].isNotEmpty() && frascos[j].last().herb == cima &&
-                                frascos[j].size < limiteDe(j)
-                        }
-                    )
+                    val candidatos = enOrden(destinos()).filter { j ->
+                        j != i && frascos[j].isNotEmpty() && frascos[j].last().herb == cima &&
+                            frascos[j].size < limiteDe(j)
+                    }
+                    val destino = if (estrategia == 4 || estrategia == 5) {
+                        elegirDestino(candidatos)
+                    } else {
+                        mejorDestinoMismoColor(candidatos, cima)
+                    }
                     if (destino != null) {
                         // Como el motor, que vierte lo que cabe en el destino aunque
                         // el bloque sea mayor. Antes el reparto exigia que cupiera
@@ -333,14 +454,43 @@ class LevelSolver {
                     }
                 }
                 if (!hecho) {
-                    for (i in libres) {
+                    // Sin destino del mismo color: se hace hueco bajando el
+                    // bloque mas grande de un frasco mezclado. Mover un frasco que
+                    // ya es de un solo color a un vacio no arregla nada y gasta el
+                    // hueco, asi que se salta.
+                    val fuentes = libres
+                        .filter { i ->
+                            bloqueSuperior(i) > 0 &&
+                                frascos[i].map { it.herb }.distinct().size > 1
+                        }
+                        .sortedByDescending { bloqueSuperior(it) }
+                    for (i in fuentes) {
                         val cuanto = bloqueSuperior(i)
-                        if (cuanto == 0) continue
                         val destino = elegirDestino(
                             enOrden(destinos()).filter { j -> j != i && frascos[j].isEmpty() }
                         )
                         if (destino != null) {
                             verter(i, destino, cuanto)
+                            hecho = true
+                            break
+                        }
+                    }
+                }
+                if (!hecho && grinderIndex != null && frascos[grinderIndex].isEmpty()) {
+                    // Ultimo recurso: el molinillo tambien sirve de salida. Echar
+                    // una capa que no tiene destino normal la muele, y si la
+                    // molida si tiene sitio, la jugada desatasca el tablero (es
+                    // justo lo que hace un jugador con la hierba secreta).
+                    for (i in libres) {
+                        val cuanto = bloqueSuperior(i)
+                        if (cuanto == 0) continue
+                        val molida = frascos[i].last().herb.molida
+                        val donde = destinos().any { j ->
+                            j != i && frascos[j].size < limiteDe(j) &&
+                                (frascos[j].isEmpty() || frascos[j].last().herb == molida)
+                        }
+                        if (donde) {
+                            verter(i, grinderIndex, 1)
                             hecho = true
                             break
                         }
@@ -358,6 +508,8 @@ class LevelSolver {
                 frascos = frascosIniciales.map { it.toMutableList() }.toMutableList()
                 sellados = selladosIniciales.toMutableList()
                 movimientos = mutableListOf()
+                planPendiente = planInicial
+                romperHielo()
                 pasos = 0
             }
         }
@@ -404,13 +556,16 @@ class LevelSolver {
     ): List<Pair<Int, Int>>? {
         val teapotIndex = initialJars.indexOfFirst { it.isTeapot }.takeIf { it >= 0 }
         val recipe = requiredOrder?.takeIf { it.isNotEmpty() }
-        val capacity = initialJars.filterNot { it.isTeapot }.maxOfOrNull { it.capacity }
+        val capacity = initialJars.filterNot { it.isTeapot || it.isGrinder }
+            .maxOfOrNull { it.capacity }
             ?: initialJars.maxOfOrNull { it.capacity }
             ?: 4
         val teapotCapacity = teapotIndex?.let { initialJars[it].capacity } ?: capacity
         val grinderIndex = initialJars.indexOfFirst { it.isGrinder }.takeIf { it >= 0 }
         val start = State(
-            jars = initialJars.map { jar -> jar.layers.map { Slot(it.herb, it.isHidden, it.isSticky) } },
+            jars = initialJars.map { jar ->
+                jar.layers.map { Slot(it.herb, it.isHidden, it.isSticky, it.isFrozen) }
+            },
             sealed = initialJars.indices.filter { initialJars[it].isSealed }.toSet(),
             grinder = grinderIndex
         )
@@ -460,7 +615,13 @@ class LevelSolver {
 
         val restIsSorted = { s: State ->
             s.jars.indices.all { i ->
-                i == teapotIndex || s.jars[i].isEmpty() || s.jars[i].herbs().distinct().size == 1
+                when {
+                    i == teapotIndex -> true
+                    i == s.grinder -> s.jars[i].isEmpty()
+                    s.jars[i].isEmpty() -> true
+                    else -> s.jars[i].herbs().distinct().size == 1 &&
+                        s.jars[i].none { it.frozen }
+                }
             }
         }
         if (!restIsSorted(state)) {
@@ -513,14 +674,26 @@ class LevelSolver {
         val isGoal = { s: State ->
             if (requiredOrder != null && requiredOrder.isNotEmpty()) {
                 val orderJarCount = s.jars.count { it.herbs() == requiredOrder }
-                orderJarCount == 1 && s.jars.all { stack ->
+                orderJarCount == 1 && s.jars.indices.all { i ->
+                    val stack = s.jars[i]
                     val herbs = stack.herbs()
-                    herbs == requiredOrder || herbs.isEmpty() || herbs.distinct().size == 1
+                    when {
+                        i == s.grinder -> herbs.isEmpty()
+                        herbs == requiredOrder -> true
+                        herbs.isEmpty() -> true
+                        else -> herbs.distinct().size == 1 && stack.none { it.frozen }
+                    }
                 }
             } else {
-                s.jars.all { stack ->
+                s.jars.indices.all { i ->
+                    val stack = s.jars[i]
                     val herbs = stack.herbs()
-                    herbs.isEmpty() || (herbs.size == capacity && herbs.distinct().size == 1)
+                    when {
+                        i == s.grinder -> herbs.isEmpty()
+                        herbs.isEmpty() -> true
+                        else -> herbs.size == capacity && herbs.distinct().size == 1 &&
+                            stack.none { it.hidden || it.frozen }
+                    }
                 }
             }
         }
@@ -591,7 +764,9 @@ class LevelSolver {
      * - Normal: la hierba superior completa, hasta llenar el destino.
      * - Tetera: cualquier hierba, la ráfaga superior hasta llenar su capacidad,
      *   y nunca se puede usar como origen.
-     * - Sellado: no se puede usar ni como origen ni como destino.
+     * - Molinillo: admite una sola hierba de cualquier color y la transforma.
+     * - Frascos sellados o helados: no se puede verter de ellos.
+     * - Capa pegajosa en la boca: el frasco no suelta nada.
      * - Una capa oculta corta la ráfaga (como en el juego).
      */
     private inline fun forEachMove(
@@ -607,16 +782,24 @@ class LevelSolver {
             if (fromIdx in state.sealed) continue
             val srcStack = stacks[fromIdx]
             if (srcStack.isEmpty()) continue
+            // El hielo bloquea el frasco entero y la miel bloquea su boca.
+            if (srcStack.any { it.frozen }) continue
             val top = srcStack.last()
-            if (top.hidden) continue
+            if (top.hidden || top.sticky) continue
             val topCount = getTopCount(srcStack)
 
             for (toIdx in stacks.indices) {
                 if (fromIdx == toIdx) continue
                 if (toIdx in state.sealed) continue
-                // El molinillo no es un frasco de almacen: no se vierte en el.
-                if (toIdx == state.grinder) continue
                 val dstStack = stacks[toIdx]
+
+                if (toIdx == state.grinder) {
+                    // Una sola capa, de cualquier color; el molinillo la
+                    // transforma al recibirla. Con el molinillo lleno no cabe.
+                    if (dstStack.isNotEmpty() || topCount <= 0) continue
+                    action(fromIdx, toIdx, 1)
+                    continue
+                }
 
                 val amount = if (teapotIndex != null && toIdx == teapotIndex) {
                     // En la tetera se vierte de una en una (regla del motor).
@@ -645,19 +828,45 @@ class LevelSolver {
     ): State {
         val stacks = state.jars.map { it.toMutableList() }
         repeat(amount) {
-            val slot = stacks[from].removeAt(stacks[from].lastIndex)
+            var slot = stacks[from].removeAt(stacks[from].lastIndex)
+            // El molinillo muele: guarda la hierba siguiente del ciclo.
+            if (to == state.grinder) slot = slot.copy(herb = slot.herb.molida)
             stacks[to].add(slot)
         }
         // El motor revela la capa superior de origen y destino tras cada vertido.
         revealTop(stacks, from)
         revealTop(stacks, to)
+        // Y si queda un frasco completo, rompe el hielo de todo el tablero.
+        thawIfCompleted(stacks, teapotIndex, state.grinder, capacity)
 
         val newJars = stacks.map { it.toList() }
         return State(
             newJars,
-            unsealAfterMove(newJars, state.sealed, teapotIndex, capacity, teapotCapacity),
+            unsealAfterMove(newJars, state.sealed, teapotIndex, state.grinder, capacity, teapotCapacity),
             state.grinder
         )
+    }
+
+    /** Réplica del calor del motor: un frasco completo descongela todo. */
+    private fun thawIfCompleted(
+        stacks: List<MutableList<Slot>>,
+        teapotIndex: Int?,
+        grinder: Int?,
+        capacity: Int
+    ) {
+        val completed = stacks.indices.count { i ->
+            if (i == teapotIndex || i == grinder) return@count false
+            stacks[i].isNotEmpty() && stacks[i].size == capacity &&
+                stacks[i].map { it.herb }.distinct().size == 1
+        }
+        if (completed == 0) return
+        stacks.indices.forEach { i ->
+            stacks[i].indices.forEach { j ->
+                if (stacks[i][j].frozen) {
+                    stacks[i][j] = stacks[i][j].copy(frozen = false)
+                }
+            }
+        }
     }
 
     private fun revealTop(stacks: List<MutableList<Slot>>, index: Int) {
@@ -672,14 +881,14 @@ class LevelSolver {
         jars: List<List<Slot>>,
         sealed: Set<Int>,
         teapotIndex: Int?,
+        grinderIndex: Int?,
         capacity: Int,
         teapotCapacity: Int
     ): Set<Int> {
         if (sealed.isEmpty()) return sealed
         val completed = jars.indices.count { i ->
-            if (i == teapotIndex) return@count false
-            val jarCapacity = if (i == teapotIndex) teapotCapacity else capacity
-            jars[i].isNotEmpty() && jars[i].size == jarCapacity &&
+            if (i == teapotIndex || i == grinderIndex) return@count false
+            jars[i].isNotEmpty() && jars[i].size == capacity &&
                 jars[i].map { it.herb }.distinct().size == 1
         }
         if (completed == 0) return sealed
@@ -695,11 +904,13 @@ class LevelSolver {
         return stillSealed
     }
 
-    /** Ráfaga superior visible: para o se corta en una capa oculta. */
+    /** Ráfaga superior visible: para en una capa oculta, helada o pegajosa. */
     private fun getTopCount(stack: List<Slot>): Int {
         if (stack.isEmpty()) return 0
+        // El frasco helado esta bloqueado entero; la miel, si esta en la boca.
+        if (stack.any { it.frozen }) return 0
         val top = stack.last()
-        if (top.hidden) return 0
+        if (top.hidden || top.sticky) return 0
         var count = 0
         for (i in stack.indices.reversed()) {
             val slot = stack[i]

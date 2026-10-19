@@ -6,14 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Regla del jugador: los frascos vacios se llenan y, como mucho, queda uno
- * esperando. La tetera y el molinillo son herramientas, no almacen, asi que no
- * cuentan como frascos vacios.
+ * Regla del jugador: los frascos vacios se llenan y queda el minimo de maniobra.
+ * La tetera y el molinillo son herramientas, no almacen, asi que no cuentan como
+ * frascos vacios.
  *
- * La excepcion son las puertas 40 y 50: suman a las seis especies de siempre
- * las de su receta (siete y ocho colores) y con un solo hueco no queda ningun
- * tablero que el solver pueda dar por bueno sin quitarles el misterio y los
- * topes de su sector; llevan un vacio de mas. Los niveles fijos del json se
+ * La cuenta sale de [LevelRepository.emptyJarsForLevel], que es la misma que usa
+ * el generador y el mapa: uno hasta seis colores, dos cuando hay siete u ocho o
+ * cuando el sector del hielo bloquea un frasco entero (con un solo hueco el
+ * solver no encuentra tablero que cerrar). Los niveles fijos del json se
  * comprueban en [PredefinedLevelsTest], leyendo el archivo de verdad.
  */
 class EmptyJarsTest {
@@ -24,17 +24,17 @@ class EmptyJarsTest {
         jars.count { it.layers.isEmpty() && !it.isTeapot && !it.isGrinder }
 
     @Test
-    fun ningunNivelGeneradoTraeMasDeUnFrascoVacioEsperando() {
+    fun ningunNivelGeneradoTraeMasFrascosVaciosDeLosQuePideSuSector() {
         val fallos = mutableListOf<String>()
         (6..50).forEach { numero ->
             val jars = repository.convertToJars(repository.getLevel(numero))
             val vacios = vaciosDeAlmacen(jars)
-            val esperado = if (numero in setOf(40, 50)) 2 else 1
+            val esperado = repository.emptyJarsForLevel(numero)
             if (vacios != esperado) {
                 fallos.add("nivel $numero con $vacios vacios (esperado $esperado)")
             }
         }
-        assertTrue("niveles con frascos vacios de mas: $fallos", fallos.isEmpty())
+        assertTrue("frascos vacios que no cuadran: $fallos", fallos.isEmpty())
     }
 
     @Test

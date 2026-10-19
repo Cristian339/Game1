@@ -13,16 +13,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Molinillo (sector del invernadero).
+ * Molinillo (sector de la noche, niveles 21-30).
  *
  * No es un frasco de almacen: admite cualquier hierba, de una en una, y la
- * guarda ya molida (la siguiente del ciclo). Para terminar el nivel tiene que
- * quedar vacio, como la tetera tiene que cuadrar con la receta.
+ * transforma en la siguiente del ciclo. Para terminar el nivel tiene que quedar
+ * vacio, como la tetera tiene que cuadrar con la receta. En los niveles sin
+ * receta el generador crea un desequilibrio (5 de A y 3 de B, con A.molida == B)
+ * para que moler sea obligatorio; en los que tienen receta arranca con una
+ * hierba ya molida dentro, que hay que devolver al tablero.
  *
  * Lo que se vigila aqui es que el motor, el solver y el generador cuenten lo
  * mismo: si el generador contara el molinillo como un frasco vacio mas, daria
- * por buenos niveles que el jugador no puede terminar; y si el solver lo viera
- * como destino, la Pista mandaria jugadas que el motor rechaza.
+ * por buenos niveles que el jugador no puede terminar; y si el solver no viera
+ * su transformacion, la Pista mandaria jugadas que el motor rechaza.
  */
 class GrinderTest {
 
@@ -102,6 +105,23 @@ class GrinderTest {
     }
 
     @Test
+    fun elMolinilloLlenoExplicaQueHayQueVaciarlo() {
+        // El aviso generico de "frasco lleno" no sirve aqui: el jugador tiene que
+        // saber que la hierba de dentro se puede sacar para volver a moler.
+        val lleno = molinillo(0, Herb.MINT.molida)
+        val origen = frasco(1, Herb.ROSEMARY)
+        val rechazo = engine.pour(origen, lleno) as PourResult.Invalid
+        assertTrue(
+            "el aviso no explica como seguir: ${rechazo.reason}",
+            rechazo.reason.contains("vacíalo") || rechazo.reason.contains("vacialo")
+        )
+        assertFalse(
+            "no deberia quedarse en el aviso generico de frasco lleno",
+            rechazo.reason.contains("frasco ya está lleno")
+        )
+    }
+
+    @Test
     fun elMolinilloSiempreMueleEnElMismoSentidoYCierraElCiclo() {
         // El ciclo no puede dejar ninguna hierba sin molida: la ultima vuelve a
         // la primera, o el nivel se quedaria sin salida.
@@ -144,17 +164,51 @@ class GrinderTest {
     }
 
     @Test
-    fun losNivelesDelInvernaderoTraenMolinilloYSeSiguenGanando() {
+    fun sinMolerNoSePuedeCerrarUnNivelDeLaNoche() {
+        // En los niveles sin receta el generador cambia una B por una A con
+        // A.molida == B. Quedan 5 A y 3 B, y como un frasco terminado es
+        // exactamente 4 de un color, ni A ni B pueden cerrarse: hace falta moler
+        // una A para dejarlo en 4 y 4. Sin el molinillo el nivel no se termina.
+        val repository = LevelRepository(null)
+        var comprobados = 0
+        (21..29).forEach { numero ->
+            val nivel = repository.getLevel(numero)
+            if (nivel.customerOrder != null) return@forEach
+            val jars = repository.convertToJars(nivel)
+            val cuentas = jars
+                .filterNot { it.isTeapot || it.isGrinder }
+                .flatMap { jar -> jar.layers }
+                .groupingBy { it.herb }
+                .eachCount()
+            val par = cuentas.entries.firstOrNull { (herb, cuantas) ->
+                cuantas == 5 && cuentas[herb.molida] == 3
+            }
+            assertTrue(
+                "el nivel $numero no trae el desequilibrio que hace obligatorio moler: " +
+                    cuentas.filterValues { it != 4 },
+                par != null
+            )
+            assertTrue(
+                "el nivel $numero ya esta cerrado sin moler: ${par!!.key.id} x${par.value}",
+                cuentas.values.any { it % 4 != 0 }
+            )
+            comprobados++
+        }
+        assertTrue("no se comprobo ningun nivel de la noche", comprobados > 0)
+    }
+
+    @Test
+    fun losNivelesDeLaNocheTraenMolinilloYSeSiguenGanando() {
         val repository = LevelRepository(null)
         var conMolinillo = 0
         val fallos = mutableListOf<String>()
         val sinMolinillo = mutableListOf<Int>()
-        (11..20).forEach { numero ->
+        (21..30).forEach { numero ->
             repeat(2) {
                 val nivel = repository.getLevel(numero)
                 val jars = repository.convertToJars(nivel)
                 if (jars.any { it.isGrinder }) conMolinillo++ else sinMolinillo.add(numero)
-                // Lo importante: el frasco de mas no vuelve irresoluble el nivel.
+                // Lo importante: el molinillo no vuelve irresoluble el nivel.
                 if (!LevelSolver().esGanalible(jars, nivel.customerOrder?.requiredHerbs)) {
                     fallos.add(
                         "nivel $numero par=${nivel.parMoves} " +
@@ -164,11 +218,11 @@ class GrinderTest {
             }
         }
         assertTrue(
-            "el molinillo no puede hacer que un nivel del invernadero sea imposible: ${fallos.take(6)}",
+            "el molinillo no puede hacer que un nivel de la noche sea imposible: ${fallos.take(6)}",
             fallos.isEmpty()
         )
         assertTrue(
-            "el sector del invernadero deberia traer molinillo en todos sus niveles, " +
+            "el sector de la noche deberia traer molinillo en todos sus niveles, " +
                 "faltaba en ${sinMolinillo.distinct().take(6)}",
             sinMolinillo.isEmpty()
         )
@@ -183,19 +237,23 @@ class GrinderTest {
         // Si el molinillo contara como frasco vacio se podria terminar el nivel
         // echandole una hierba, porque el nivel se daria por bueno con el lleno.
         val repository = LevelRepository(null)
-        (11..20).forEach { numero ->
+        (21..30).forEach { numero ->
             val nivel = repository.getLevel(numero)
             val jars = repository.convertToJars(nivel)
             val vasija = jars.firstOrNull { it.isGrinder }
                 ?: throw AssertionError("el nivel $numero deberia traer molinillo")
             assertEquals(
-                "el molinillo del nivel $numero deberia empezar vacio",
-                0,
-                vasija.layers.size
-            )
-            assertTrue(
                 "el molinillo del nivel $numero deberia caber una sola hierba",
-                vasija.capacity == 1
+                1,
+                vasija.capacity
+            )
+            // Con receta arranca con una capa ya molida (la que hay que devolver
+            // al tablero); sin receta arranca vacio y se llena al moler.
+            val esperado = if (nivel.customerOrder != null) 1 else 0
+            assertEquals(
+                "el molinillo del nivel $numero deberia arrancar con $esperado capas",
+                esperado,
+                vasija.layers.size
             )
             assertFalse(
                 "el nivel $numero no puede darse por terminado con una hierba dentro del molinillo",
@@ -228,12 +286,13 @@ class GrinderTest {
     }
 
     @Test
-    fun laPistaDeUnNivelConMolinilloNuncaMandaEcharNadaDentro() {
-        // El reparto que genera la Pista no usa el molinillo a proposito: sus
-        // jugadas tienen que ser ejecutables tal cual en el motor.
+    fun laPistaDeUnNivelConMolinilloEsEjecutable() {
+        // La Pista puede usar el molinillo (moler una hierba o sacar la que ya
+        // trae), pero cada jugada tiene que ser legal en el motor y la solucion
+        // completa tiene que dejar el molinillo vacio.
         val repository = LevelRepository(null)
         val solver = LevelSolver()
-        (11..20).forEach { numero ->
+        (21..30).forEach { numero ->
             val nivel = repository.getLevel(numero)
             var jars = repository.convertToJars(nivel)
             val order = nivel.customerOrder
@@ -244,10 +303,6 @@ class GrinderTest {
             assertTrue("el nivel $numero deberia tener solucion", solucion != null)
 
             solucion!!.forEach { (from, to) ->
-                assertTrue(
-                    "nivel $numero: la Pista manda echar al molinillo ($from -> $to)",
-                    to != vasija
-                )
                 val permiso = engine.pour(jars[from], jars[to], order)
                 assertTrue(
                     "nivel $numero: movimiento ilegal $from -> $to (${permiso as? PourResult.Invalid})",
@@ -263,6 +318,10 @@ class GrinderTest {
             assertTrue(
                 "nivel $numero: la solucion no completa el nivel",
                 engine.checkLevelCompleted(jars, order, LevelRepository.isGateLevel(numero))
+            )
+            assertTrue(
+                "nivel $numero: la solucion deja algo en el molinillo",
+                jars[vasija].isEmpty
             )
         }
     }

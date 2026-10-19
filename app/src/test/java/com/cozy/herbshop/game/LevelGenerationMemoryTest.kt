@@ -80,7 +80,7 @@ class LevelGenerationMemoryTest {
         (1..50).forEach { numero ->
             repeat(3) { intento ->
                 val jars = repository.convertToJars(repository.getLevel(numero))
-                    .filterNot { it.isTeapot }
+                    .filterNot { it.isTeapot || it.isGrinder }
                 jars.forEachIndexed { indice, jar ->
                     if (jar.layers.size == jar.capacity && jar.layers.map { it.herb }.distinct().size == 1) {
                         listos.add("$numero/$intento frasco ${indice + 1}")
@@ -103,7 +103,7 @@ class LevelGenerationMemoryTest {
         listOf(27, 30, 33, 36, 39, 40, 45, 50).forEach { numero ->
             repeat(6) {
                 val jars = repository.convertToJars(repository.getLevel(numero))
-                    .filterNot { it.isTeapot }
+                    .filterNot { it.isTeapot || it.isGrinder }
                 val ordenados = jars.count { jar ->
                     jar.layers.isNotEmpty() && jar.layers.map { it.herb }.distinct().size == 1
                 }

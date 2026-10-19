@@ -108,7 +108,7 @@ class MechanicTest {
         // El tope de jugadas no esta en los frascos: lo pone la regla del sector.
         assertEquals(
             Mechanic.MOVE_LIMIT,
-            Mechanic.toExplain(jars, SectorRule.MOVE_LIMIT, todas - "move_limit")
+            Mechanic.toExplain(jars, SectorRule.ALL, todas - "move_limit")
         )
         assertNull(
             "si ya se las sabe todas no hay tutorial que dar",

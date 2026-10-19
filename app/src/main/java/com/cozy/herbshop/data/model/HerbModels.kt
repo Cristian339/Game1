@@ -129,14 +129,19 @@ data class Jar(
     val isEmpty: Boolean get() = layers.isEmpty()
     val topLayer: JarLayer? get() = layers.lastOrNull()
 
-    // Solo se obtiene la hierba superior si el frasco no está sellado y la capa
-    // está revelada. Las capas congeladas son un efecto visual: se descongelan al
-    // aflorar y nunca bloquean un vertido (así la Pista siempre es jugable).
+    // La hierba superior se ve aunque la capa este congelada: asi el jugador
+    // puede saber que color necesita para romper el hielo. Lo que no se ve es
+    // una capa tapada con "?".
     val topHerb: Herb? get() = if (isSealed) null else topLayer?.takeIf { !it.isHidden }?.herb
 
     val topCount: Int
         get() {
             if (isEmpty || isSealed) return 0
+            // Un frasco helado esta bloqueado entero: no sale nada de el hasta
+            // que se complete otro frasco y el hielo se rompa. Una capa pegajosa
+            // en la boca tambien lo bloquea: hay que cubrirla con su color.
+            if (hasFrozen) return 0
+            if (topLayer?.isSticky == true) return 0
             val top = topHerb ?: return 0
             var count = 0
             for (i in layers.indices.reversed()) {
@@ -144,7 +149,7 @@ data class Jar(
                 // Una capa pegajosa que tenga algo encima hace de tope: el
                 // vertido se para ahi y hay que gastarla en otra jugada.
                 if (i != layers.lastIndex && layer.isSticky) break
-                if (!layer.isHidden && !layer.isFrozen && layer.herb == top) count++ else break
+                if (!layer.isHidden && layer.herb == top) count++ else break
             }
             return count
         }
@@ -152,17 +157,19 @@ data class Jar(
     /** Si el frasco tiene alguna capa pegajosa. Lo usa el aviso del nivel. */
     val hasSticky: Boolean get() = layers.any { it.isSticky }
 
+    /** Si el frasco esta helado y, por tanto, no deja salir nada. */
+    val hasFrozen: Boolean get() = layers.any { it.isFrozen }
+
     val isCompleted: Boolean
         get() = if (isGrinder) isEmpty
         else isEmpty || (isFull && !isSealed && layers.all { !it.isHidden && !it.isFrozen && it.herb == layers.first().herb })
 
     fun unseal(): Jar = copy(isSealed = false)
 
-    fun unfreezeTopLayer(): Jar {
-        if (layers.isEmpty() || !layers.last().isFrozen) return this
-        val newLayers = layers.toMutableList()
-        newLayers[newLayers.lastIndex] = newLayers.last().copy(isFrozen = false)
-        return copy(layers = newLayers)
+    /** Rompe todo el hielo del frasco (se llama cuando se completa otro). */
+    fun thaw(): Jar {
+        if (layers.none { it.isFrozen }) return this
+        return copy(layers = layers.map { if (it.isFrozen) it.copy(isFrozen = false) else it })
     }
 
     /**
@@ -214,16 +221,31 @@ data class GameLevel(
 /**
  * La novedad que trae cada sector. El camino se va haciendo mas dificil porque
  * cada tramo anade una regla, no solo mas frascos.
+ *
+ * 1-10  Amanecer: recetas y capas misteriosas (la base del juego).
+ * 11-20 Invernadero: frascos helados.
+ * 21-30 Noche: molinillo obligatorio.
+ * 31-40 Bosque: capas pegajosas.
+ * 41-50 Otono: todo junto y tope de jugadas.
  */
 enum class SectorRule(val displayName: String) {
     NONE(""),
+    FROZEN("Frascos helados"),
     GRINDER("Molinillo"),
-    MOVE_LIMIT("Te despues de la cena"),
-    STICKY("Capa pegajosa"),
+    STICKY("Capas pegajosas"),
     ALL("Todo a la vez");
 
     /** Si este sector trae molinillo. */
     val traeMolinillo: Boolean get() = this == GRINDER || this == ALL
+
+    /** Si este sector trae frascos helados. */
+    val traeHelados: Boolean get() = this == FROZEN || this == ALL
+
+    /** Si este sector trae capas pegajosas. */
+    val traePegajosas: Boolean get() = this == STICKY || this == ALL
+
+    /** Si este sector limita las jugadas al par con margen. */
+    val limitaJugadas: Boolean get() = this == ALL
 
     /**
      * Lo que la ficha del nivel anuncia de este sector. [displayName] vale para
@@ -233,7 +255,7 @@ enum class SectorRule(val displayName: String) {
     val novedades: List<String>
         get() = when (this) {
             NONE -> emptyList()
-            ALL -> listOf("Molinillo", "Capa pegajosa")
+            ALL -> listOf("Frascos helados", "Molinillo", "Capas pegajosas", "Tope de jugadas")
             else -> listOf(displayName)
         }
 
@@ -245,8 +267,8 @@ enum class SectorRule(val displayName: String) {
          */
         fun forLevel(levelNumber: Int): SectorRule = when (levelNumber) {
             in 1..10 -> NONE
-            in 11..20 -> GRINDER
-            in 21..30 -> MOVE_LIMIT
+            in 11..20 -> FROZEN
+            in 21..30 -> GRINDER
             in 31..40 -> STICKY
             else -> ALL
         }

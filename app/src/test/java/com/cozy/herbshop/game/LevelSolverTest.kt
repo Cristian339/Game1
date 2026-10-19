@@ -1,5 +1,6 @@
 package com.cozy.herbshop.game
 
+import com.cozy.herbshop.data.model.CustomerOrder
 import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.Jar
 import org.junit.Assert.assertEquals
@@ -14,11 +15,13 @@ class LevelSolverTest {
 
     private lateinit var solver: LevelSolver
     private lateinit var generator: LevelGenerator
+    private lateinit var repository: LevelRepository
 
     @Before
     fun setUp() {
         solver = LevelSolver()
         generator = LevelGenerator(solver)
+        repository = LevelRepository(null)
     }
 
     @Test
@@ -54,17 +57,16 @@ class LevelSolverTest {
             jarCapacity = 4
         )
 
-        val jars = level.jars.mapIndexed { index, herbIds ->
-            Jar(id = index, capacity = level.jarCapacity, stack = herbIds.map { Herb.fromId(it) })
-        }
-
+        // Se lee con el mismo parser que usa la partida: los ids pueden traer
+        // prefijos de misterio y una capa tapada no es una hierba distinta.
+        val jars = repository.convertToJars(level)
         val isSolvable = solver.isSolvable(jars)
         assertTrue("Generated level should be solvable by LevelSolver", isSolvable)
     }
 
     @Test
     fun testDailyDifficultyLevelHasNoFrozenLayers() {
-        // Daily challenge uses difficulty 4 (mystery + sealed, never frozen)
+        // Daily challenge uses level 4 (mystery, never frozen).
         val level = generator.generateSolvableLevel(
             levelNumber = 4,
             numHerbTypes = 4,
@@ -73,12 +75,8 @@ class LevelSolverTest {
             random = Random(42)
         )
 
-        val hasFrozen = level.jars.any { jar -> jar.any { it.startsWith("frozen:") } }
-        assertFalse("Difficulty 4 must not generate frozen layers", hasFrozen)
-
-        val jars = level.jars.mapIndexed { index, herbIds ->
-            Jar(id = index, capacity = level.jarCapacity, stack = herbIds.map { Herb.fromId(it.removePrefix("sealed:").removePrefix("?")) })
-        }
+        val jars = repository.convertToJars(level)
+        assertFalse("Difficulty 4 must not generate frozen layers", jars.any { it.hasFrozen })
         assertTrue("Daily-difficulty level should be solvable", solver.isSolvable(jars))
     }
 
@@ -102,34 +100,36 @@ class LevelSolverTest {
 
     @Test
     fun testGeneratedGateLevelSolvableWithRecipe() {
+        // Un nivel con receta de verdad: la tetera es una herramienta y el
+        // objetivo no es solo ordenar, hay que servirla en orden.
+        val receta = listOf(Herb.CHAMOMILE, Herb.CHAMOMILE, Herb.ROSEMARY, Herb.LAVENDER)
         val level = generator.generateSolvableLevel(
             levelNumber = 9,
             numHerbTypes = 6,
             emptyJars = 2,
             jarCapacity = 4,
-            random = Random(9)
+            random = Random(9),
+            requiredOrder = receta
+        ).copy(
+            customerOrder = CustomerOrder(
+                id = "test_gate_9",
+                customerName = "Prueba",
+                dialogue = "",
+                recipeName = "Receta de prueba",
+                requiredHerbs = receta
+            )
         )
 
-        // El generador comprueba el nivel con su frasco sellado puesto, asi que aqui
-        // tambien: si se quita el sello, el frasco se deja tocar y el nivel queda
-        // mas facil de lo que era y la comprobacion no vale.
-        val jars = level.jars.mapIndexed { index, herbIds ->
-            Jar(
-                id = index,
-                capacity = level.jarCapacity,
-                isSealed = herbIds.any { it.startsWith("sealed:") },
-                stack = herbIds.map {
-                    Herb.fromId(it.removePrefix("sealed:").removePrefix("frozen:").removePrefix("?"))
-                }
-            )
-        }
+        // Se lee con el mismo parser que usa la partida: la tetera es el ultimo
+        // frasco vacio y el molinillo, si lo hubiera, no se confunde con ella.
+        val jars = repository.convertToJars(level)
         assertTrue(
             "Generated gate level 9 must be solvable",
             // El reparto es el que comprueba el generador. La busqueda por
             // anchura no llega a encontrar la solucion de un nivel bien disperso
             // (seis o mas hierbas) dentro del presupuesto de memoria, asi que
             // daria un falso "imposible" en niveles que si se pueden terminar.
-            solver.esGanalible(jars)
+            solver.esGanalible(jars, receta)
         )
     }
 }

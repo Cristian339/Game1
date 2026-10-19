@@ -11,11 +11,13 @@ import org.junit.Test
 /**
  * Capa pegajosa (sector del bosque).
  *
- * Una capa pegada hace de tope: no se deja verter por encima, asi que el bloque
- * de arriba sale partido y hay que gastar una jugada de mas. Lo peligroso no es
- * que sea dificil, es que el motor y el solver no coincidan: si el solver no ve
- * el tope, daria una pista ilegal, y si el generador no lo ve, entregaria niveles
- * que en realidad no se pueden terminar.
+ * La miel va pegada al fondo del frasco: no se puede sacar, asi que para
+ * terminarlo hay que cubrirla con su mismo color. Mientras esta en la boca
+ * bloquea el frasco; si tiene capas encima, corta la rafaga como un tope. Lo
+ * peligroso no es que sea dificil, es que el motor y el solver no coincidan: si
+ * el solver no ve el bloqueo, daria una pista ilegal, y si el generador lo
+ * pusiera en medio, las capas de debajo quedarian atrapadas y el nivel no se
+ * podria terminar.
  */
 class StickyLayerTest {
 
@@ -28,10 +30,16 @@ class StickyLayerTest {
     )
 
     @Test
-    fun laCimaPegajosaSiSePuedeMover() {
-        // Si es lo de arriba no hay nada que la sujete: se puede verter normal.
+    fun laCimaPegajosaBloqueaElFrasco() {
+        // Pegajosa en la boca: no sale nada. Se cubre con su mismo color.
         val frasco = jar(0, Herb.MINT, Herb.MINT, stickyAt = setOf(1))
-        assertTrue("la cima pegajosa deberia salir en bloque", frasco.topCount == 2)
+        assertTrue("la cima pegajosa no deberia dejar salir nada", frasco.topCount == 0)
+
+        val destino = Jar(id = 1, capacity = 4)
+        assertTrue(
+            "el motor tampoco deberia dejar verter desde una cima pegajosa",
+            engine.pour(frasco, destino) is PourResult.Invalid
+        )
     }
 
     @Test
@@ -50,30 +58,35 @@ class StickyLayerTest {
 
     @Test
     fun elMotorYElSolverCuentanElTopeIgual() {
-        // Si no coinciden, la Pista sugiere jugadas que el motor rechaza.
+        // Si no coinciden, la Pista sugiere jugadas que el motor rechaza. Este
+        // tablero se termina sacando la lavanda de encima de la miel y cubriendo
+        // la miel con las tres mentas del otro frasco.
         val jars = listOf(
-            jar(0, Herb.LAVENDER, Herb.LAVENDER, Herb.MINT, Herb.MINT, stickyAt = setOf(2)),
-            jar(1, Herb.LAVENDER, Herb.LAVENDER, Herb.MINT, Herb.MINT),
-            Jar(id = 2, capacity = 4)
+            jar(0, Herb.MINT, Herb.LAVENDER, stickyAt = setOf(0)),
+            jar(1, Herb.LAVENDER, Herb.LAVENDER, Herb.LAVENDER),
+            jar(2, Herb.MINT, Herb.MINT, Herb.MINT),
+            Jar(id = 3, capacity = 4)
         )
-        val destino = Jar(id = 3, capacity = 4)
-        val resultado = engine.pour(jars[0], destino)
-        val esperadoPorElJuego = jars[0].topCount
 
-        val solucion = LevelSolver().repartirYResolver(
-            jars + destino,
-            null
-        )
+        val solucion = LevelSolver().repartirYResolver(jars, null)
         assertTrue("el reparto deberia encontrar una solucion", solucion != null)
 
-        // El primer movimiento sale del frasco 0 y no puede levar mas de dos.
-        val primera = solucion!!.first()
-        assertTrue("el primer vertido deberia salir del frasco 0", primera.first == 0)
+        var actuales = jars
+        solucion!!.forEach { (from, to) ->
+            val permiso = engine.pour(actuales[from], actuales[to])
+            assertTrue(
+                "movimiento ilegal $from -> $to (${permiso as? PourResult.Invalid})",
+                permiso is PourResult.Success
+            )
+            actuales = engine.executePour(
+                actuales, from, to,
+                (permiso as PourResult.Success).countPoured
+            )
+        }
         assertTrue(
-            "la pista lleva ${primera} pero el motor solo deja $esperadoPorElJuego",
-            primera.second != 0 && esperadoPorElJuego == 1
+            "la solucion del solver no termina el nivel en el motor",
+            engine.checkLevelCompleted(actuales)
         )
-        assertTrue("el motor deberia aceptar el vertido", resultado is PourResult.Success)
     }
 
     @Test

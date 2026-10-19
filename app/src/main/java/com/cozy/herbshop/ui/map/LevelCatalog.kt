@@ -59,7 +59,6 @@ data class LevelInfo(
             parts.addAll(sectorRule.novedades)
             if (order != null) parts.add("Tetera")
             if (hasMystery) parts.add("Misterio")
-            if (hasFrozen) parts.add("Congeladas")
             if (hasSealed) parts.add("Sellado")
             return parts.joinToString(" · ")
         }
@@ -127,36 +126,18 @@ class LevelCatalog(
             hasFrozen = capas.any { it.startsWith("frozen:") }
             hasSealed = capas.any { it.startsWith("sealed:") }
         } else {
-            // Mismas formulas que LevelRepository.getLevel: un frasco vacio de
-            // almacen, y con receta uno mas que es la tetera (ya va en la linea
-            // de mecanicas como "Tetera").
-            val numHerbTypes = minOf(3 + (numero / 5), 6)
-            // El generador parte de las primeras [numHerbTypes] hierbas y anade
-            // las de la receta que falten: el tomillo del nivel 50 no esta entre
-            // las seis primeras y ocupa un frasco entero mas.
-            val hierbasBase = (Herb.delReparto.take(numHerbTypes) + order?.requiredHerbs.orEmpty())
-                .distinct().size
+            // Mismas formulas que LevelRepository: hierbas, huecos, tetera y
+            // molinillo salen de la misma tabla que usa el generador.
+            val hierbasBase = (Herb.delReparto.take(repository.herbTypesForLevel(numero)) +
+                order?.requiredHerbs.orEmpty()).distinct().size
             // Las puertas esconden ademas su hierba secreta en un frasco, tapada: al
             // jugador le aparece una hierba mas en la partida.
             herbTypes = hierbasBase + (if (LevelRepository.isGateLevel(numero)) 1 else 0)
-            // Pero la secreta no trae un frasco mas: sustituye una capa, asi que el
-            // tablero trae exactamente las mismas capas (y los mismos frascos) que
-            // tendria sin ella. Contarla aqui ponia un frasco de mas en las puertas.
-            //
-            // El frasco vacio de almacen es uno; con receta el generador anade uno
-            // mas, que es donde va la tetera. Y en los sectores con molinillo hay
-            // otro frasco mas para el. La puerta que suma hierbas de receta a las
-            // seis de siempre (la 40 y la 50) lleva un segundo vacio: es la misma
-            // regla que LevelRepository.getLevel.
-            val vacios = if (hierbasBase > 6) 2 else 1
-            jarCount = hierbasBase + vacios +
-                (if (order != null) 1 else 0) +
-                (if (SectorRule.forLevel(numero).traeMolinillo) 1 else 0)
-            // A partir del 3 el generador ya empieza a esconder capas, y del 5 en
-            // adelante congela alguna. Sellados no hay: el generador no sella
-            // frascos porque con el reparto en rueda el nivel quedaria imposible.
+            jarCount = repository.jarCountForLevel(numero)
+            // El generador garantiza una capa misteriosa desde el nivel 3 y
+            // frascos helados en los sectores que los anuncian.
             hasMystery = numero >= 3
-            hasFrozen = numero >= 5
+            hasFrozen = SectorRule.forLevel(numero).traeHelados
             hasSealed = false
         }
 

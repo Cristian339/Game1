@@ -12,9 +12,9 @@ import com.cozy.herbshop.data.model.SectorRule
  * fuerza a que la traiga y el que el mapa marca con "aqui se estrena": asi el
  * tutorial, la partida y la ficha no pueden contradecirse.
  *
- * Solo cuenta como estreno la primera aparicion de verdad: el misterio empieza
- * en el 3, la tetera en el primer pedido (el 4), las congeladas en el 5, el
- * molinillo en el 11, el tope de jugadas en el 21 y las pegajosas en el 31.
+ * El reparto es deliberadamente lento: primero la base (misterio y recetas),
+ * luego una regla nueva por sector. Antes en el nivel 9 ya habia tres mecanicas
+ * y el jugador no sabia cual estaba jugando.
  */
 enum class Mechanic(
     val id: String,
@@ -39,31 +39,31 @@ enum class Mechanic(
     ),
     FROZEN(
         id = "frozen",
-        introLevel = 5,
+        introLevel = 11,
         emoji = "❄️",
-        title = "Capas congeladas",
-        body = "Una capa congelada se descongela al llegar a lo alto del frasco. Mientras esté dentro, el bloque de vertido se corta en ella."
+        title = "Frascos helados",
+        body = "Un frasco helado no suelta nada: mientras tenga hielo no puedes sacar ninguna capa. Completa otro frasco y el hielo se romperá en todo el tablero."
     ),
     GRINDER(
         id = "grinder",
-        introLevel = 11,
+        introLevel = 21,
         emoji = "⚙️",
         title = "El Molinillo",
-        body = "El frasco con la manivela muele de una en una: admite cualquier hierba y la guarda convertida en la siguiente del ciclo. Tiene que quedar vacío para superar el nivel."
-    ),
-    MOVE_LIMIT(
-        id = "move_limit",
-        introLevel = 21,
-        emoji = "⏳",
-        title = "Tope de jugadas",
-        body = "En este sector cada nivel tiene un tope de jugadas: el par más cuatro. Si se acaban no pierdes la partida: deja de aceptar jugadas hasta que uses ↩️ Deshacer o reinicies."
+        body = "El frasco con la manivela muele de una en una: admite cualquier hierba y la guarda convertida en la siguiente del ciclo. Hay niveles que solo se cierran moliendo una hierba que sobra para convertirla en la que falta."
     ),
     STICKY(
         id = "sticky",
         introLevel = 31,
         emoji = "🍯",
         title = "Capas pegajosas",
-        body = "Una capa pegajosa se agarra al frasco: las de encima salen bien, pero el vertido se corta al llegar a ella y hay que gastar otra jugada."
+        body = "La miel se queda pegada a la boca del frasco: si asoma, ese frasco no se puede vaciar. Cúbrela con una capa de su mismo color para poder seguir."
+    ),
+    MOVE_LIMIT(
+        id = "move_limit",
+        introLevel = 41,
+        emoji = "⏳",
+        title = "Tope de jugadas",
+        body = "En el último sector cada nivel tiene un tope de jugadas: el par más cuatro. Si se acaban no pierdes la partida: deja de aceptar jugadas hasta que uses ↩️ Deshacer o reinicies."
     );
 
     /**
@@ -73,11 +73,11 @@ enum class Mechanic(
      */
     fun isPresentIn(jars: List<Jar>, sectorRule: SectorRule): Boolean = when (this) {
         MYSTERY -> jars.any { jar -> jar.layers.any { it.isHidden } }
-        TEAPOT -> jars.any { it.isTeapot }
-        FROZEN -> jars.any { jar -> jar.layers.any { it.isFrozen } }
-        GRINDER -> jars.any { it.isGrinder }
-        MOVE_LIMIT -> sectorRule == SectorRule.MOVE_LIMIT
-        STICKY -> jars.any { it.hasSticky }
+        TEAPOT -> jars.any { jar -> jar.isTeapot }
+        FROZEN -> jars.any { jar -> jar.hasFrozen }
+        GRINDER -> jars.any { jar -> jar.isGrinder }
+        STICKY -> jars.any { jar -> jar.hasSticky }
+        MOVE_LIMIT -> sectorRule.limitaJugadas
     }
 
     companion object {

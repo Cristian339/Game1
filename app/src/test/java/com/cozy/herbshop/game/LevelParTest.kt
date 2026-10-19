@@ -47,8 +47,8 @@ class LevelParTest {
     @Test
     fun cadaSectorTraeSuNovedadYLaUltimaPuertaLasTodas() {
         assertEquals(SectorRule.NONE, repository.getLevel(5).sectorRule)
-        assertEquals(SectorRule.GRINDER, repository.getLevel(15).sectorRule)
-        assertEquals(SectorRule.MOVE_LIMIT, repository.getLevel(25).sectorRule)
+        assertEquals(SectorRule.FROZEN, repository.getLevel(15).sectorRule)
+        assertEquals(SectorRule.GRINDER, repository.getLevel(25).sectorRule)
         assertEquals(SectorRule.STICKY, repository.getLevel(35).sectorRule)
         assertEquals(SectorRule.ALL, repository.getLevel(50).sectorRule)
     }
@@ -57,7 +57,7 @@ class LevelParTest {
     fun elLimiteDeJugadasSoloAplicaASuSector() {
         val conPar = GameUiState(parMoves = 10)
         assertTrue("sin sector con limite no debe haber tope", conPar.moveLimit == null)
-        assertTrue("el limite de su sector debe ser el par con margen", conPar.copy(sectorRule = SectorRule.MOVE_LIMIT).moveLimit != null)
+        assertTrue("el limite de su sector debe ser el par con margen", conPar.copy(sectorRule = SectorRule.ALL).moveLimit != null)
         assertTrue(
             "tampoco debe haber tope con capa pegajosa o molinillo",
             conPar.copy(sectorRule = SectorRule.STICKY).moveLimit == null &&
@@ -69,7 +69,7 @@ class LevelParTest {
     fun elLimiteNoDejaElNivelImposibleDeTerminar() {
         // Lo importante: pasado el tope no se pierde, se avisa. El Deshacer sigue
         // vivo y lo que ya esta resuelto sigue contando.
-        val justo = GameUiState(parMoves = 8, movesCount = 12, sectorRule = SectorRule.MOVE_LIMIT)
+        val justo = GameUiState(parMoves = 8, movesCount = 12, sectorRule = SectorRule.ALL)
         assertTrue("deberia marcar el tope alcanzado", justo.atMoveLimit)
         assertTrue("no hay jugadas", justo.movesLeft == 0)
         val historialConJuego = justo.copy(history = listOf(justo.jars))
@@ -82,7 +82,7 @@ class LevelParTest {
 
     @Test
     fun elMargenSobreElParDaJuegoParaExplorar() {
-        val estado = GameUiState(parMoves = 20, sectorRule = SectorRule.MOVE_LIMIT)
+        val estado = GameUiState(parMoves = 20, sectorRule = SectorRule.ALL)
         assertTrue("el limite deberia dejar margen sobre el par", (estado.moveLimit ?: 0) > 20)
     }
 
