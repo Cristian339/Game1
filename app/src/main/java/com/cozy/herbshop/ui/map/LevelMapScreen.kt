@@ -471,6 +471,23 @@ private fun LevelDetailSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                info.newMechanic?.let { mecanica ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🎓 Aquí se estrena: ${mecanica.title}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
                 val order = info.order
                 if (order != null) {
                     Spacer(modifier = Modifier.height(14.dp))

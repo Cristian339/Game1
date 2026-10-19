@@ -43,6 +43,13 @@ class UserPreferencesRepository(private val context: Context) {
         val SECRET_INGREDIENTS = stringSetPreferencesKey("secret_ingredients")
         val TUTORIAL_BASIC_DONE = booleanPreferencesKey("tutorial_basic_done")
         val TUTORIAL_RECIPE_DONE = booleanPreferencesKey("tutorial_recipe_done")
+
+        /**
+         * Prefijo de las mecanicas ya explicadas: tutorial_mecanica_<id>. Se
+         * guarda asi y no con una clave por mecanica para no repetir aqui la
+         * lista de ids (vive en Mechanic).
+         */
+        const val TUTORIAL_MECHANIC_PREFIX = "tutorial_mecanica_"
         val UNDO_TOKENS = intPreferencesKey("undo_tokens")
         val UNLOCKED_ASMR_PACKS = stringSetPreferencesKey("unlocked_asmr_packs")
         val ASMR_IN_GAME_ENABLED = booleanPreferencesKey("asmr_in_game_enabled")
@@ -217,6 +224,15 @@ class UserPreferencesRepository(private val context: Context) {
         prefs[TUTORIAL_RECIPE_DONE] ?: false
     }.distinctUntilChanged()
 
+    /** Ids de las mecanicas cuyo tutorial ya se ha visto (o se ha saltado). */
+    val tutorialMechanicsDoneFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs.asMap().keys
+            .map { it.name }
+            .filter { it.startsWith(TUTORIAL_MECHANIC_PREFIX) }
+            .map { it.removePrefix(TUTORIAL_MECHANIC_PREFIX) }
+            .toSet()
+    }.distinctUntilChanged()
+
     val undoTokensFlow: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[UNDO_TOKENS] ?: 3
     }
@@ -347,6 +363,12 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setTutorialRecipeDone() {
         context.dataStore.edit { prefs -> prefs[TUTORIAL_RECIPE_DONE] = true }
+    }
+
+    suspend fun setTutorialMechanicDone(mechanicId: String) {
+        context.dataStore.edit { prefs ->
+            prefs[booleanPreferencesKey(TUTORIAL_MECHANIC_PREFIX + mechanicId)] = true
+        }
     }
 
     suspend fun setAmbientSound(sound: String) {

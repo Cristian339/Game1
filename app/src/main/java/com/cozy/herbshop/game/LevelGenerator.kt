@@ -84,6 +84,17 @@ class LevelGenerator(
         // nivel para que el par y la pista cuenten con ella.
         val secreto = Herb.secretaDePuerta(levelNumber)
 
+        // El nivel que estrena una mecanica la trae seguro: el tutorial no puede
+        // explicar algo que la partida no enseña. El adorno va al azar (y las
+        // pasadas de abajo lo quitan cuando el tablero viene apretado), asi que
+        // se fuerza una capa de dentro del primer frasco. El solver valida el
+        // nivel despues, con la capa puesta. La tetera (nivel 4) y el molinillo
+        // (nivel 11) no necesitan esto: su sector o su receta ya los traen.
+        val estreno = Mechanic.entries.firstOrNull { it.introLevel == levelNumber }
+        val forzarMisterio = estreno == Mechanic.MYSTERY
+        val forzarCongelada = estreno == Mechanic.FROZEN
+        val forzarPegajosa = estreno == Mechanic.STICKY
+
         // Primero se prueba con la mezcla de siempre y, si el solver no llega,
         // se va bajando. Cada capa de menos aleja el nivel de ser irresoluble.
         // Ademas se va bajando el adorno: el misterio y los topes (congelada,
@@ -140,15 +151,20 @@ class LevelGenerator(
                         // su cima tiene que quedar a la vista o el frasco queda
                         // inservible y la solucion del reparto seria ilegal.
                         val esFondoSellado = index == sealedJarIndex && layerIndex == 0
+                        // El estreno de la mecanica va en una capa de dentro del
+                        // primer frasco: nunca en la cima, que si se puede mover.
+                        val esCapaDeEstreno = index == 0 && layerIndex == 1 && herbs.size > 2
                         // La secreta va siempre tapada y nunca en la cima (la coloca
                         // conSecreto), asi que se ve como un misterio mas.
                         val isMystery = herb.esSecreta ||
-                            (shouldAddMystery && adorno.conMisterio && !isTop && !esFondoSellado && random.nextFloat() < 0.18f)
+                            (shouldAddMystery && adorno.conMisterio && !isTop && !esFondoSellado && random.nextFloat() < 0.18f) ||
+                            (forzarMisterio && esCapaDeEstreno)
                         // Congelada: una capa de dentro, no la cima. Congelar la
                         // cima no servia de nada (el motor descongela las cimas al
                         // empezar y al verter, asi que el jugador no la veia nunca);
                         // una capa de dentro si corta el bloque, como la pegajosa.
-                        val isFrozen = adorno.conTopes && levelNumber >= 5 && !isTop && random.nextFloat() < 0.08f
+                        val isFrozen = (adorno.conTopes && levelNumber >= 5 && !isTop && random.nextFloat() < 0.08f) ||
+                            (forzarCongelada && esCapaDeEstreno)
                         // Capa pegajosa (sector del bosque en adelante): se pega al
                         // frasco y hace de tope, asi que obliga a gastar una jugada
                         // mas. Nunca en la cima, que si se podria mover. Una de cada
@@ -156,7 +172,8 @@ class LevelGenerator(
                         // troceado que ni el reparto ni la busqueda completa
                         // encontraban salida y el generador entregaba el nivel de
                         // reserva (plano) en la mitad del sector.
-                        val isSticky = adorno.conTopes && conPegajosas && !isTop && random.nextFloat() < 0.10f
+                        val isSticky = (adorno.conTopes && conPegajosas && !isTop && random.nextFloat() < 0.10f) ||
+                            (forzarPegajosa && esCapaDeEstreno)
 
                         var idStr = herb.id
                         if (isMystery) idStr = "?$idStr"

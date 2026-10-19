@@ -12,6 +12,7 @@ import com.cozy.herbshop.data.repository.UserPreferencesRepository
 import com.cozy.herbshop.game.HerbUnlocks
 import com.cozy.herbshop.game.LevelRepository
 import com.cozy.herbshop.game.LevelSolver
+import com.cozy.herbshop.game.Mechanic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -107,6 +108,17 @@ fun loadLevel(levelNumber: Int) {
             val initialJars = gameEngine.processSealedJars(levelRepository.convertToJars(level))
             val basicDone = preferencesRepository.tutorialBasicDoneFlow.first()
             val recipeDone = preferencesRepository.tutorialRecipeDoneFlow.first()
+            val mecanicasVistas = preferencesRepository.tutorialMechanicsDoneFlow.first()
+            // El tutorial basico (nivel 1) y el de receta (primera puerta) mandan:
+            // el de mecanica solo sale si no hay otro encima.
+            val showBasicTutorial = levelNumber == 1 && !basicDone
+            val showRecipeTutorial =
+                LevelRepository.isGateLevel(levelNumber) && !recipeDone && level.customerOrder != null
+            val tutorialMecanica = if (showBasicTutorial || showRecipeTutorial) {
+                null
+            } else {
+                Mechanic.toExplain(initialJars, level.sectorRule, mecanicasVistas)
+            }
             val preview = previewReward(rewardIdFor(level.levelNumber, level.customerOrder?.id))
             _uiState.value = GameUiState(
                 levelNumber = levelNumber,
@@ -116,8 +128,9 @@ fun loadLevel(levelNumber: Int) {
                 isGateLevel = LevelRepository.isGateLevel(levelNumber) && level.customerOrder != null,
                 parMoves = level.parMoves,
                 sectorRule = level.sectorRule,
-                showBasicTutorial = levelNumber == 1 && !basicDone,
-                showRecipeTutorial = LevelRepository.isGateLevel(levelNumber) && !recipeDone && level.customerOrder != null,
+                showBasicTutorial = showBasicTutorial,
+                showRecipeTutorial = showRecipeTutorial,
+                showMechanicTutorial = tutorialMecanica,
                 undoTokens = preferencesRepository.undoTokensFlow.first(),
                 helpStocks = currentHelpStocks(),
                 nextRecipeHerb = gameEngine.nextRecipeHerb(
@@ -154,6 +167,10 @@ fun loadLevel(levelNumber: Int) {
             if (state.showRecipeTutorial) {
                 preferencesRepository.setTutorialRecipeDone()
                 _uiState.update { it.copy(showRecipeTutorial = false) }
+            }
+            state.showMechanicTutorial?.let { mecanica ->
+                preferencesRepository.setTutorialMechanicDone(mecanica.id)
+                _uiState.update { it.copy(showMechanicTutorial = null) }
             }
         }
     }

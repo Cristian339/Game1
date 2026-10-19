@@ -193,7 +193,8 @@ fun GameScreen(
     // dia o un cliente con receta. En los niveles sin receta no sale ni boton ni
     // ventana, porque no hay nada que mirar.
     val hayPedido = uiState.customerOrder != null || uiState.isGateLevel || uiState.isDailyChallenge
-    val tutorialEncima = uiState.showBasicTutorial || uiState.showRecipeTutorial
+    val tutorialEncima = uiState.showBasicTutorial || uiState.showRecipeTutorial ||
+        uiState.showMechanicTutorial != null
     // Misma regla que usa el mapa y la partida al ganar la puerta, para que la
     // ventana y el herbario no se contradigan.
     val herbarioPuertas = remember { HerbUnlocks.herbByGate(LevelRepository.GATE_LEVELS) }
@@ -870,6 +871,7 @@ fun GameScreen(
             )
         }
 
+        val mecanicaTutorial = uiState.showMechanicTutorial
         if (uiState.showBasicTutorial) {
             TutorialOverlay(
                 steps = listOf(
@@ -914,6 +916,20 @@ fun GameScreen(
                         emoji = "🎁",
                         title = "Gana la hierba nueva",
                         body = "Al completar la receta recibirás +50 🍃 y una hierba nueva para tu herbario."
+                    )
+                ),
+                onSkip = { viewModel.dismissTutorial() },
+                onFinished = { viewModel.dismissTutorial() }
+            )
+        } else if (mecanicaTutorial != null) {
+            // Una sola tarjeta: la mecanica que este nivel estrena. Se ve una vez
+            // por mecanica y se puede saltar como el resto de tutoriales.
+            TutorialOverlay(
+                steps = listOf(
+                    TutorialStep(
+                        emoji = mecanicaTutorial.emoji,
+                        title = mecanicaTutorial.title,
+                        body = mecanicaTutorial.body
                     )
                 ),
                 onSkip = { viewModel.dismissTutorial() },

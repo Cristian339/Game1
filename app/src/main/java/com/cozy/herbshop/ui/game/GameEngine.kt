@@ -5,6 +5,7 @@ import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.HelpItem
 import com.cozy.herbshop.data.model.Jar
 import com.cozy.herbshop.data.model.PourResult
+import com.cozy.herbshop.game.Mechanic
 
 data class PourAnimation(
     val sourceIndex: Int,
@@ -42,6 +43,11 @@ data class GameUiState(
     val bonusLeaves: Int = 0,
     val showBasicTutorial: Boolean = false,
     val showRecipeTutorial: Boolean = false,
+    /**
+     * Mecanica que este nivel estrena y que el jugador aun no ha visto. Se
+     * explica una vez por mecanica, con opcion de saltar.
+     */
+    val showMechanicTutorial: Mechanic? = null,
     val animatingPour: PourAnimation? = null,
     val undoTokens: Int = 3,
     /** Usos restantes de cada ayuda. Ver [HelpItem]. */

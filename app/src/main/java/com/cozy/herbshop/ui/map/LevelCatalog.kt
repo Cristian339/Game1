@@ -6,6 +6,7 @@ import com.cozy.herbshop.data.model.Herb
 import com.cozy.herbshop.data.model.SectorRule
 import com.cozy.herbshop.game.HerbUnlocks
 import com.cozy.herbshop.game.LevelRepository
+import com.cozy.herbshop.game.Mechanic
 import com.cozy.herbshop.ui.components.GameScene
 
 /**
@@ -31,6 +32,11 @@ data class LevelInfo(
     val hasSealed: Boolean,
     /** Novedad que trae el sector del nivel. */
     val sectorRule: SectorRule = SectorRule.NONE,
+    /**
+     * Mecanica que el nivel estrena: la ficha la anuncia para que el jugador
+     * sepa que ahi le van a explicar algo nuevo.
+     */
+    val newMechanic: Mechanic? = null,
     /** Si las cuentas de la ficha salen del nivel tal cual (niveles fijos). */
     val exactCounts: Boolean = false
 ) {
@@ -169,6 +175,9 @@ class LevelCatalog(
             // La regla del sector sale de la tabla unica, la misma que lee el
             // generador: el mapa no puede anunciar algo que la partida no traiga.
             sectorRule = SectorRule.forLevel(numero),
+            // Y el estreno de mecanica, de la tabla de Mechanic: el nivel que la
+            // trae por primera vez es el que da el tutorial.
+            newMechanic = Mechanic.entries.firstOrNull { it.introLevel == numero },
             exactCounts = predefined != null
         )
     }

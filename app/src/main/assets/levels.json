@@ -47,7 +47,7 @@
       ["calendula", "thyme", "calendula", "mint"],
       ["thyme", "cinnamon", "mint", "calendula"],
       ["cinnamon", "mint", "thyme", "cinnamon"],
-      ["mint", "calendula", "cinnamon", "thyme"],
+      ["mint", "frozen:calendula", "cinnamon", "thyme"],
       []
     ]
   }
