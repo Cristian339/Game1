@@ -69,6 +69,37 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
     private val gson = gsonDeNiveles()
     private var jsonLevelsCache: List<GameLevel>? = null
+    // Generar un nivel es una busqueda con solver; si se repite el nivel no hace
+    // falta volver a pagarla. La cache es por numero de nivel porque la receta y
+    // la semilla son deterministas.
+    private val generatedLevelsCache = mutableMapOf<Int, GameLevel>()
+
+    /**
+     * Semillas alternativas para los niveles que, con un solo hueco, no
+     * encontraban tablero con la semilla base. El indice es el intento que se
+     * suma a la semilla del nivel; el primero de la lista ya genera un tablero
+     * normal, y a partir de ahi se sigue probando por si el generador cambia.
+     *
+     * No se puede volver a dos frascos vacios: el jugador pidio que se llenen y
+     * que quede uno. Estos niveles tienen hielo, miel, molinillo o todas las
+     * mecanicas a la vez, asi que necesitan una semilla distinta, no otro hueco.
+     */
+    private val seedAttempts = mapOf(
+        15 to 1,
+        19 to 2,
+        21 to 1,
+        31 to 1,
+        35 to 4,
+        37 to 1,
+        39 to 2,
+        41 to 2,
+        43 to 4,
+        45 to 8,
+        47 to 17,
+        49 to 4
+    )
+    private val seedAttemptsToTry = 6
+
 
     fun loadPredefinedLevels(): List<GameLevel> {
         if (jsonLevelsCache != null) return jsonLevelsCache!!
@@ -94,6 +125,10 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
         // el pedido siempre sea preparable (+50 🍃 y puerta de hierba).
         val requiredOrder = order?.requiredHerbs
 
+        generatedLevelsCache[levelNumber]?.let { cached ->
+            return cached.copy(customerOrder = order)
+        }
+
         val predefined = loadPredefinedLevels()
         val found = predefined.find { it.levelNumber == levelNumber }
         if (found != null) {
@@ -102,30 +137,99 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
 
         val numHerbs = herbTypesForLevel(levelNumber)
         val jarCapacity = 4
-        // Un frasco vacio de almacen, mas la tetera y el molinillo cuando tocan
-        // (que son herramientas, no almacen). Antes se dejaban tres o cinco
-        // "para tener maniobra" y el jugador veia la partida llena de frascos
-        // esperando: pidio llenarlos y dejar uno. A partir del sector del
-        // molinillo el nivel usa siete u ocho colores y necesita un segundo
-        // hueco para poder repartir sin romper las mecanicas del sector; el
-        // generador valida cada reparto con el solver, asi que el nivel sigue
-        // siendo terminable desde la posicion en la que empieza el jugador.
+        // Un solo frasco vacio de almacen: el resto se llena con hierbas. La
+        // tetera y el molinillo son herramientas y no cuentan como huecos. Antes
+        // se dejaban dos en los sectores de siete u ocho colores, pero el jugador
+        // veia demasiados frascos esperando y pidio llenarlos.
         val emptyJars = emptyJarsForLevel(levelNumber)
-
-        val generated = levelGenerator.generateSolvableLevel(
+        val generated = generateLevelWithRetries(
             levelNumber = levelNumber,
-            numHerbTypes = numHerbs,
+            numHerbs = numHerbs,
             emptyJars = emptyJars,
             jarCapacity = jarCapacity,
-            // Semilla por nivel: el mismo nivel reparte el mismo tablero, y el mapa
-            // (que promete cuentas) y los tests pueden contar con ello. Sin esto el
-            // generador sorteaba en cada partida y un nivel podia caer al tablero
-            // de reserva en una partida y no en la siguiente. El reto diario ya
-            // tenia su propia semilla por dia.
-            random = Random(levelNumber * 7919L + 13L),
-            requiredOrder = requiredOrder
+            requiredOrder = requiredOrder,
+            order = order
         )
+        generatedLevelsCache[levelNumber] = generated
         return generated.copy(customerOrder = order)
+    }
+
+    /**
+     * Genera el nivel con la semilla base y, si el generador cae al tablero de
+     * reserva, prueba semillas alternativas. El tablero de reserva es un puzle
+     * plano y, en los sectores con mecanicas, ni siquiera las trae: la ficha
+     * prometeria hielo o miel que luego no aparece.
+     */
+    private fun generateLevelWithRetries(
+        levelNumber: Int,
+        numHerbs: Int,
+        emptyJars: Int,
+        jarCapacity: Int,
+        requiredOrder: List<Herb>?,
+        order: CustomerOrder?
+    ): GameLevel {
+        val primerIntento = seedAttempts[levelNumber] ?: 0
+        var ultimo: GameLevel? = null
+        repeat(seedAttemptsToTry) { offset ->
+            val intento = primerIntento + offset
+            val generated = levelGenerator.generateSolvableLevel(
+                levelNumber = levelNumber,
+                numHerbTypes = numHerbs,
+                emptyJars = emptyJars,
+                jarCapacity = jarCapacity,
+                // Semilla por nivel: el mismo nivel reparte el mismo tablero, y el
+                // mapa (que promete cuentas) y los tests pueden contar con ello.
+                // El intento extra solo se usa cuando la semilla base cae al
+                // tablero de reserva.
+                random = Random(levelNumber * 7919L + 13L + intento * 104729L),
+                requiredOrder = requiredOrder
+            )
+            ultimo = generated
+            if (isRealLevel(
+                    generated,
+                    order,
+                    SectorRule.forLevel(levelNumber),
+                    emptyJars,
+                    jarCountForLevel(levelNumber)
+                )
+            ) {
+                return generated.copy(customerOrder = order)
+            }
+        }
+        return (ultimo ?: error("no se pudo generar el nivel $levelNumber"))
+            .copy(customerOrder = order)
+    }
+
+    /**
+     * Un nivel real trae mezcla y las mecanicas de su sector. El de reserva es
+     * un tablero ya ordenado (o casi) y, en los sectores con marcas, no las
+     * lleva; si lo aceptaramos, el mapa y el tutorial mentirian.
+     */
+    private fun isRealLevel(
+        level: GameLevel,
+        order: CustomerOrder?,
+        sector: SectorRule,
+        expectedEmptyJars: Int,
+        expectedJars: Int
+    ): Boolean {
+        val jars = convertToJars(level.copy(customerOrder = order))
+        val normales = jars.filter { !it.isTeapot && !it.isGrinder }
+        val hayMezcla = normales.any { jar -> jar.layers.distinctBy { it.herb }.size > 1 }
+        val vacios = normales.count { it.layers.isEmpty() }
+        // El tablero de reserva recorta las hierbas (a veces a cuatro) y deja
+        // menos frascos de los que anuncia la ficha. Tiene que traer la cuenta
+        // completa para que el nivel siga teniendo la dificultad de su sector.
+        if (jars.size != expectedJars) return false
+        if (!hayMezcla || vacios != expectedEmptyJars) return false
+        if (sector.traeHelados && normales.none { it.hasFrozen }) return false
+        if (sector.traePegajosas && normales.none { it.hasSticky }) return false
+        if (sector.traeMolinillo && jars.none { it.isGrinder }) return false
+        // El sector final anuncia todas las mecanicas juntas, incluida la capa
+        // misteriosa; no vale un tablero que se haya quedado sin ella.
+        if (sector.traeHelados && sector.traePegajosas &&
+            normales.none { jar -> jar.layers.any { it.isHidden } }
+        ) return false
+        return true
     }
 
     fun getZenLevel(): GameLevel {
@@ -191,19 +295,13 @@ val GATE_LEVELS = setOf(10, 20, 30, 40, 50)
     }
 
     /**
-     * Huecos libres que trae el nivel. Hasta seis colores basta uno; con siete u
-     * ocho el tablero necesita dos para que el solver pueda ordenarlo sin quitar
-     * las mecanicas del sector. Las herramientas no cuentan.
+     * Huecos libres de almacen que trae el nivel: exactamente uno. Los demas
+     * frascos se llenan con hierbas; la tetera y el molinillo son herramientas y
+     * no cuentan. Antes se dejaban dos en los sectores de siete u ocho colores o
+     * con hielo, porque al generador le costaba cerrar el tablero; ahora se
+     * compensa con semillas alternativas y el nivel sigue validado por el solver.
      */
-    fun emptyJarsForLevel(levelNumber: Int): Int {
-        val required = orderForLevel(levelNumber)?.requiredHerbs.orEmpty()
-        val hierbas = (Herb.delReparto.take(herbTypesForLevel(levelNumber)) + required).distinct()
-        // El sector del hielo necesita dos aunque solo traiga seis colores: con
-        // un solo hueco no queda tablero que el solver pueda cerrar tras bloquear
-        // un frasco entero.
-        val sector = SectorRule.forLevel(levelNumber)
-        return if (hierbas.size > 6 || sector.traeHelados) 2 else 1
-    }
+    fun emptyJarsForLevel(@Suppress("UNUSED_PARAMETER") levelNumber: Int): Int = 1
 
     /** Frascos de almacen que vera el jugador: hierbas, huecos y herramientas. */
     fun jarCountForLevel(levelNumber: Int): Int {

@@ -82,12 +82,34 @@ enum class Mechanic(
 
     companion object {
         /**
-         * La mecanica que toca explicar: la mas temprana que el nivel trae y
-         * que el jugador todavia no ha visto. Null si ya se las sabe todas.
+         * La mecanica que toca explicar.
+         *
+         * En el nivel que estrena una mecanica (11, 21, 31, 41) se muestra
+         * siempre, aunque el jugador ya la haya visto: asi puede repetir el
+         * nivel y volver a leer la explicacion, o saltarla con el boton del
+         * tutorial. En el resto de niveles solo se muestra la primera vez que
+         * aparece una mecanica que el jugador todavia no conoce.
+         *
+         * Las mecanicas iniciales (misterio y tetera) no se repiten en cada
+         * visita al nivel 3/4: ya tienen su tutorial de bienvenida y el de
+         * receta, que sale antes que este.
          */
-        fun toExplain(jars: List<Jar>, sectorRule: SectorRule, seen: Set<String>): Mechanic? =
-            entries
+        fun toExplain(
+            levelNumber: Int,
+            jars: List<Jar>,
+            sectorRule: SectorRule,
+            seen: Set<String>
+        ): Mechanic? {
+            val estreno = entries.firstOrNull {
+                it.introLevel == levelNumber &&
+                    it.introLevel >= FROZEN.introLevel &&
+                    it.isPresentIn(jars, sectorRule)
+            }
+            if (estreno != null) return estreno
+
+            return entries
                 .filter { it.id !in seen && it.isPresentIn(jars, sectorRule) }
                 .minByOrNull { it.introLevel }
+        }
     }
 }

@@ -13,10 +13,9 @@ import com.cozy.herbshop.ui.components.GameScene
  * Resumen de un nivel para el mapa.
  *
  * Solo muestra lo que es estable entre partidas: el escenario, si es puerta de
- * hierba, la receta y cuantas hierbas/jars tiene. El nivel se genera al azar en
- * cada partida, asi que contar los frascos de una muestra seria mentir: en vez
- * de eso se derivan de las mismas formulas que usa el generador, que si son
- * ciertas para cualquier partida.
+ * hierba, la receta y cuantas hierbas/frascos tiene. El nivel se genera con una
+ * semilla fija por nivel y el generador valida la cuenta completa, asi que las
+ * cifras se derivan de las mismas formulas que usa la partida y son ciertas.
  */
 data class LevelInfo(
     val number: Int,
@@ -36,25 +35,17 @@ data class LevelInfo(
      * Mecanica que el nivel estrena: la ficha la anuncia para que el jugador
      * sepa que ahi le van a explicar algo nuevo.
      */
-    val newMechanic: Mechanic? = null,
-    /** Si las cuentas de la ficha salen del nivel tal cual (niveles fijos). */
-    val exactCounts: Boolean = false
+    val newMechanic: Mechanic? = null
 ) {
     /** Linea corta de mecanicas: "5 frascos · 3 hierbas · Tetera". */
     val mechanics: String
         get() {
-            // Los frascos y las hierbas son el tope del reparto normal. Cuando el
-            // generador no encuentra tablero ganable entrega el de reserva, que
-            // trae menos hierbas, asi que en los niveles generados la ficha no
-            // puede prometer la cuenta exacta; en los fijos (levels.json) si.
             val parts = mutableListOf<String>()
-            if (exactCounts) {
-                parts.add("$jarCount frascos")
-                parts.add("$herbTypes hierbas")
-            } else {
-                parts.add("hasta $jarCount frascos")
-                parts.add("hasta $herbTypes hierbas")
-            }
+            // El generador entrega siempre la cuenta completa (hierbas + un
+            // hueco + herramientas) y los cinco fijos se cuentan desde el json:
+            // la ficha puede decir el numero exacto, sin "hasta".
+            parts.add("$jarCount frascos")
+            parts.add("$herbTypes hierbas")
             // La novedad del sector va primero: es lo que cambia como se juega.
             parts.addAll(sectorRule.novedades)
             if (order != null) parts.add("Tetera")
@@ -158,8 +149,7 @@ class LevelCatalog(
             sectorRule = SectorRule.forLevel(numero),
             // Y el estreno de mecanica, de la tabla de Mechanic: el nivel que la
             // trae por primera vez es el que da el tutorial.
-            newMechanic = Mechanic.entries.firstOrNull { it.introLevel == numero },
-            exactCounts = predefined != null
+            newMechanic = Mechanic.entries.firstOrNull { it.introLevel == numero }
         )
     }
 }

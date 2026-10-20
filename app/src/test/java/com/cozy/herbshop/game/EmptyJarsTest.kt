@@ -10,10 +10,9 @@ import org.junit.Test
  * La tetera y el molinillo son herramientas, no almacen, asi que no cuentan como
  * frascos vacios.
  *
- * La cuenta sale de [LevelRepository.emptyJarsForLevel], que es la misma que usa
- * el generador y el mapa: uno hasta seis colores, dos cuando hay siete u ocho o
- * cuando el sector del hielo bloquea un frasco entero (con un solo hueco el
- * solver no encuentra tablero que cerrar). Los niveles fijos del json se
+ * Todos los niveles dejan exactamente un hueco de almacen. Los niveles que antes
+ * necesitaban dos (siete u ocho colores, o el sector del hielo) usan semillas
+ * alternativas y siguen validados por el solver. Los niveles fijos del json se
  * comprueban en [PredefinedLevelsTest], leyendo el archivo de verdad.
  */
 class EmptyJarsTest {

@@ -150,14 +150,17 @@ class LevelCatalogTest {
 
     @Test
     fun lasPuertasCuentanElFrascoDeLaTetera() {
-        // Con receta el generador anade un vacio mas, que es la tetera. El mapa la
-        // cuenta aparte en la linea de mecanicas, asi que en el total de frascos
-        // no puede venir.
+        // Con receta el generador anade la tetera, que es una herramienta mas.
+        // La ficha cuenta todos los frascos que ve el jugador y la nombra aparte
+        // en la linea de mecanicas; el total tiene que incluirla.
+        val repositorio = LevelRepository(null)
         listOf(10, 20, 30).forEach { numero ->
             val info = catalog[numero]
+            val real = repositorio.convertToJars(repositorio.getLevel(numero))
             assertTrue("el nivel $numero deberia tener tetera", info.order != null)
             assertTrue("el nivel $numero deberia anunciar la tetera", info.mechanics.contains("Tetera"))
-            assertTrue("el nivel $numero deberia tener frascos", info.jarCount > 0)
+            assertTrue("el nivel $numero deberia tener tetera en el tablero", real.any { it.isTeapot })
+            assertEquals("frascos de la puerta $numero", real.size, info.jarCount)
         }
     }
 

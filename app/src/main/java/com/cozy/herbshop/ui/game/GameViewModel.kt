@@ -117,7 +117,7 @@ fun loadLevel(levelNumber: Int) {
             val tutorialMecanica = if (showBasicTutorial || showRecipeTutorial) {
                 null
             } else {
-                Mechanic.toExplain(initialJars, level.sectorRule, mecanicasVistas)
+                Mechanic.toExplain(levelNumber, initialJars, level.sectorRule, mecanicasVistas)
             }
             val preview = previewReward(rewardIdFor(level.levelNumber, level.customerOrder?.id))
             _uiState.value = GameUiState(

@@ -379,11 +379,13 @@ class GrinderTest {
             "fichas del mapa que no cuadran con el nivel: ${fallos.take(8)}",
             fallos.isEmpty()
         )
-        // El tablero de reserva es la red de seguridad, no el camino: si saltara
-        // en mas de unos pocos niveles, la ficha se quedaria corta en muchos.
+        // Con un solo hueco el generador podia caer al tablero de reserva, que
+        // recorta hierbas y frascos. Las semillas alternativas de LevelRepository
+        // lo evitan: si algun nivel vuelve a caer, la ficha diria una cuenta que
+        // la partida no trae y este test lo denuncia.
         assertTrue(
-            "niveles que caen al tablero de reserva: $enReserva ($reserva) (esperado 4 o menos)",
-            enReserva <= 4
+            "niveles que caen al tablero de reserva: $enReserva ($reserva) (esperado 0)",
+            enReserva == 0
         )
     }
 }

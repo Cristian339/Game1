@@ -69,7 +69,7 @@ class LevelGenerator(
     fun generateSolvableLevel(
         levelNumber: Int,
         numHerbTypes: Int = 4,
-        emptyJars: Int = 2,
+        emptyJars: Int = 1,
         jarCapacity: Int = 4,
         random: Random = Random.Default,
         requiredOrder: List<Herb>? = null

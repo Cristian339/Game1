@@ -486,11 +486,32 @@ fun CozyHerbShopAppNavHost(
                 isDailyChallenge = gameState.isDailyChallenge,
                 onNextLevelClicked = {
                     gameViewModel.resetLevelCompleted()
-                    val nextLevel = levelNum + 1
+                    if (gameState.isDailyChallenge) {
+                        // El reto diario se cierra al superarlo: no hay siguiente
+                        // nivel ni se puede volver a jugar hoy. La pantalla ya
+                        // esconde el boton, pero este guardia evita que una
+                        // pulsacion tardia o una pila de navegacion vieja abran
+                        // otro nivel.
+                        navGuard.goToMenu(navController)
+                    } else {
+                        val nextLevel = levelNum + 1
 
-                    val isAdsRemoved = mainUiState.adsRemoved
-                    if (!isAdsRemoved && nextLevel % AdManager.INTERSTITIAL_FREQUENCY_LEVELS == 0) {
-                        adManager.showInterstitialAd(activity) {
+                        val isAdsRemoved = mainUiState.adsRemoved
+                        if (!isAdsRemoved && nextLevel % AdManager.INTERSTITIAL_FREQUENCY_LEVELS == 0) {
+                            adManager.showInterstitialAd(activity) {
+                                mainViewModel.consumeStaminaForGame(
+                                    onSuccess = {
+                                        navController.navigate("game/$nextLevel") {
+                                            popUpTo("main_menu") { inclusive = false }
+                                        }
+                                    },
+                                    onNoStamina = {
+                                        AudioHub.sound.playNoStamina()
+                                        navGuard.goToMenu(navController)
+                                    }
+                                )
+                            }
+                        } else {
                             mainViewModel.consumeStaminaForGame(
                                 onSuccess = {
                                     navController.navigate("game/$nextLevel") {
@@ -503,18 +524,6 @@ fun CozyHerbShopAppNavHost(
                                 }
                             )
                         }
-                    } else {
-                        mainViewModel.consumeStaminaForGame(
-                            onSuccess = {
-                                navController.navigate("game/$nextLevel") {
-                                    popUpTo("main_menu") { inclusive = false }
-                                }
-                            },
-                            onNoStamina = {
-                                AudioHub.sound.playNoStamina()
-                                navGuard.goToMenu(navController)
-                            }
-                        )
                     }
                 },
                 onMenuClicked = {

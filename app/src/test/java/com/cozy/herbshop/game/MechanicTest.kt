@@ -101,19 +101,44 @@ class MechanicTest {
         )
         val todas = Mechanic.entries.map { it.id }.toSet()
 
-        assertEquals(Mechanic.MYSTERY, Mechanic.toExplain(jars, SectorRule.NONE, todas - "mystery"))
-        assertEquals(Mechanic.TEAPOT, Mechanic.toExplain(jars, SectorRule.NONE, todas - "teapot"))
-        assertEquals(Mechanic.FROZEN, Mechanic.toExplain(jars, SectorRule.NONE, todas - "frozen"))
-        assertEquals(Mechanic.STICKY, Mechanic.toExplain(jars, SectorRule.NONE, todas - "sticky"))
+        assertEquals(Mechanic.MYSTERY, Mechanic.toExplain(1, jars, SectorRule.NONE, todas - "mystery"))
+        assertEquals(Mechanic.TEAPOT, Mechanic.toExplain(1, jars, SectorRule.NONE, todas - "teapot"))
+        assertEquals(Mechanic.FROZEN, Mechanic.toExplain(1, jars, SectorRule.NONE, todas - "frozen"))
+        assertEquals(Mechanic.STICKY, Mechanic.toExplain(1, jars, SectorRule.NONE, todas - "sticky"))
         // El tope de jugadas no esta en los frascos: lo pone la regla del sector.
         assertEquals(
             Mechanic.MOVE_LIMIT,
-            Mechanic.toExplain(jars, SectorRule.ALL, todas - "move_limit")
+            Mechanic.toExplain(1, jars, SectorRule.ALL, todas - "move_limit")
         )
         assertNull(
             "si ya se las sabe todas no hay tutorial que dar",
-            Mechanic.toExplain(jars, SectorRule.NONE, todas)
+            Mechanic.toExplain(1, jars, SectorRule.NONE, todas)
         )
+    }
+
+    @Test
+    fun elNivelQueEstrenaLaMecanicaLaVuelveAExplicarAlRepetir() {
+        val jars = listOf(
+            Jar(
+                id = 0,
+                capacity = 4,
+                layers = listOf(
+                    JarLayer(Herb.MINT),
+                    JarLayer(Herb.MINT, isSticky = true),
+                    JarLayer(Herb.MINT, isFrozen = true),
+                    JarLayer(Herb.MINT)
+                )
+            ),
+            Jar(id = 1, capacity = 1, layers = emptyList(), isGrinder = true)
+        )
+        val todas = Mechanic.entries.map { it.id }.toSet()
+
+        // Aunque ya las haya visto, el nivel de estreno vuelve a mostrar su
+        // tutorial (y el jugador puede saltarlo).
+        assertEquals(Mechanic.FROZEN, Mechanic.toExplain(11, jars, SectorRule.NONE, todas))
+        assertEquals(Mechanic.GRINDER, Mechanic.toExplain(21, jars, SectorRule.NONE, todas))
+        assertEquals(Mechanic.STICKY, Mechanic.toExplain(31, jars, SectorRule.NONE, todas))
+        assertEquals(Mechanic.MOVE_LIMIT, Mechanic.toExplain(41, jars, SectorRule.ALL, todas))
     }
 
     @Test
