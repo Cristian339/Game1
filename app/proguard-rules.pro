@@ -1,2 +1,2 @@
-# Proguard rules for Cozy Herb Shop
+# Proguard rules for Heart & Herb
 -keep class com.cozy.herbshop.data.model.** { *; }

@@ -16,7 +16,7 @@ class NotificationHelper(private val context: Context) {
 
     companion object {
         const val CHANNEL_ID = "cozy_tea_refill_channel"
-        const val CHANNEL_NAME = "Recarga de Té Cozy"
+        const val CHANNEL_NAME = "Recarga de Té · Heart & Herb"
         const val NOTIFICATION_ID = 1001
     }
 

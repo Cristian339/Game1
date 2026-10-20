@@ -133,7 +133,7 @@ fun MainMenuScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Cozy Herb Shop",
+                    text = "Heart & Herb",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         shadow = Shadow(
                             color = androidx.compose.ui.graphics.Color(0xCC3E2723),

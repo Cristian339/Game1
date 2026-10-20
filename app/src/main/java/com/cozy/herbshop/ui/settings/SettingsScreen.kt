@@ -359,7 +359,7 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Cozy Herb Shop v1.0.0",
+                    text = "Heart & Herb v1.0.0",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
