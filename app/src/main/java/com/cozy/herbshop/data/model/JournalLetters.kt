@@ -107,6 +107,9 @@ object JournalLetters {
     /** Todas las cartas, en el orden en que se leen. */
     val TODAS: List<CustomerLetter> = CARTAS
 
+    /** Una carta por id, para que el album pueda citarla sin duplicar el texto. */
+    fun byId(id: String): CustomerLetter? = CARTAS.firstOrNull { it.id == id }
+
     /** Puertas que traen carta, de menor a mayor. */
     val PUERTAS: List<Int> = CARTAS.mapNotNull { it.gate }.sorted()
 

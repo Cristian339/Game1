@@ -58,7 +58,7 @@ fun MainMenuScreen(
     onPlayClicked: () -> Unit,
     onDailyChallengeClicked: () -> Unit,
     onZenModeClicked: () -> Unit,
-    onJournalClicked: () -> Unit,
+    onAlbumClicked: () -> Unit,
     onLevelMapClicked: () -> Unit,
     onHerbariumClicked: () -> Unit,
     onShopClicked: () -> Unit,
@@ -250,7 +250,7 @@ fun MainMenuScreen(
                 OutlinedButton(
                     onClick = {
                         AudioHub.sound.playUiClick()
-                        onJournalClicked()
+                        onAlbumClicked()
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(22.dp),
@@ -260,7 +260,7 @@ fun MainMenuScreen(
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 ) {
                     Text(
-                        "📖 Diario",
+                        "📖 Álbum",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface

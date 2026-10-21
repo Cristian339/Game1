@@ -45,7 +45,7 @@ import com.cozy.herbshop.ui.game.GameScreen
 import com.cozy.herbshop.ui.game.GameViewModel
 import com.cozy.herbshop.ui.game.LevelCompleteScreen
 import com.cozy.herbshop.ui.herbarium.HerbariumScreen
-import com.cozy.herbshop.ui.journal.JournalScreen
+import com.cozy.herbshop.ui.album.AlbumScreen
 import com.cozy.herbshop.ui.main.MainMenuScreen
 import com.cozy.herbshop.ui.main.MainViewModel
 import com.cozy.herbshop.ui.map.LevelMapScreen
@@ -291,8 +291,8 @@ fun CozyHerbShopAppNavHost(
                 onZenModeClicked = {
                     navController.navigate("zen_mode")
                 },
-                onJournalClicked = {
-                    navController.navigate("journal")
+                onAlbumClicked = {
+                    navController.navigate("album")
                 },
                 onLevelMapClicked = {
                     navController.navigate("level_map")
@@ -318,8 +318,8 @@ fun CozyHerbShopAppNavHost(
             )
         }
 
-        composable("journal") {
-            JournalScreen(
+        composable("album") {
+            AlbumScreen(
                 repository = preferencesRepository,
                 onBackClicked = { navGuard.pop(navController) }
             )
